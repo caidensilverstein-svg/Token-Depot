@@ -17,6 +17,9 @@ final class NoteStore: ObservableObject {
 
     @Published private(set) var notes: [Note] = []
 
+    // Tracks tampered note IDs so UI can surface alerts after load
+    private(set) var tamperedNoteIDs: [String] = []
+
     private let fm = FileManager.default
     private var notesDirectory: URL {
         let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -37,18 +40,28 @@ final class NoteStore: ObservableObject {
         ).filter { $0.pathExtension == "tdnote" }
 
         var loaded: [Note] = []
+        tamperedNoteIDs = []
+
         for fileURL in files {
             do {
                 let note = try loadNote(from: fileURL, key: key)
                 loaded.append(note)
             } catch NoteStoreError.tamperedNote(let id) {
-                // Surface tamper detection — don't silently skip
-                print("[TokenDepot] TAMPER DETECTED on note \(id) — skipping")
-                // TODO: surface alert in UI
+                tamperedNoteIDs.append(id)
             }
         }
 
         notes = loaded.sorted { $0.updatedAt > $1.updatedAt }
+
+        // Post notification so UI can surface tamper alerts
+        if !tamperedNoteIDs.isEmpty {
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .tamperedNotesDetected,
+                    object: self.tamperedNoteIDs
+                )
+            }
+        }
     }
 
     // MARK: — Save
@@ -56,16 +69,13 @@ final class NoteStore: ObservableObject {
     func save(note: Note, key: SymmetricKey) throws {
         let envelope = try encrypt(note: note, key: key)
         let data = try JSONEncoder().encode(envelope)
-
         let fileURL = notesDirectory.appendingPathComponent("\(note.id.uuidString).tdnote")
 
-        // Write atomically — never partial writes
+        // Atomic write — never partial
         try data.write(to: fileURL, options: [.atomic])
-
-        // Set file permissions to 600 — owner read/write only
+        // Owner read/write only
         try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
 
-        // Update in-memory list
         if let idx = notes.firstIndex(where: { $0.id == note.id }) {
             notes[idx] = note
         } else {
@@ -73,7 +83,7 @@ final class NoteStore: ObservableObject {
         }
     }
 
-    // MARK: — Delete (requires confirmation, not panic)
+    // MARK: — Delete
 
     func delete(note: Note) throws {
         let fileURL = notesDirectory.appendingPathComponent("\(note.id.uuidString).tdnote")
@@ -83,27 +93,36 @@ final class NoteStore: ObservableObject {
 
     // MARK: — Panic Wipe
 
-    /// Triggered by panic password — multi-pass wipe of all note files.
     func panicWipeAll() {
         do {
             try SecureWipe.wipeDirectory(at: notesDirectory)
-        } catch {
-            // Best-effort — even if wipe fails partway, directory is gone
-        }
+        } catch {}
         notes = []
         createDirectoryIfNeeded()
     }
 
-    // MARK: — Clear from memory on lock
+    // MARK: — Clear on lock
 
     func clearMemory() {
         notes = []
+        tamperedNoteIDs = []
+    }
+
+    // MARK: — Next staggered position for new notes
+
+    func nextNotePosition() -> CGPoint {
+        // Stagger each new note 24px down-right from the last one
+        // Wrap around after 10 notes to avoid going off screen
+        let base = CGPoint(x: 100, y: 100)
+        let offset: CGFloat = 24
+        let count = CGFloat(notes.count % 10)
+        return CGPoint(x: base.x + offset * count, y: base.y + offset * count)
     }
 
     // MARK: — Private
 
     private func loadNote(from url: URL, key: SymmetricKey) throws -> Note {
-        let data = try Data(contentsOf: url)
+        let data     = try Data(contentsOf: url)
         let envelope = try JSONDecoder().decode(EncryptedNoteEnvelope.self, from: data)
 
         let payload: NotePayload
@@ -125,16 +144,14 @@ final class NoteStore: ObservableObject {
     }
 
     private func encrypt(note: Note, key: SymmetricKey) throws -> EncryptedNoteEnvelope {
-        let payload = NotePayload(title: note.title, content: note.content)
+        let payload     = NotePayload(title: note.title, content: note.content)
         let payloadData = try JSONEncoder().encode(payload)
-
-        // Fresh nonce every save — never reused
-        let encryptedPayload = try CryptoEngine.encrypt(plaintext: payloadData, key: key)
-        let salt = KeyDerivation.generateSalt()  // Per-note salt for future key rotation support
+        let encrypted   = try CryptoEngine.encrypt(plaintext: payloadData, key: key)
+        let salt        = KeyDerivation.generateSalt()
 
         return EncryptedNoteEnvelope(
             id: note.id.uuidString,
-            encryptedPayload: encryptedPayload,
+            encryptedPayload: encrypted,
             salt: salt,
             createdAt: note.createdAt,
             updatedAt: Date(),
@@ -148,7 +165,10 @@ final class NoteStore: ObservableObject {
 
     private func createDirectoryIfNeeded() {
         try? fm.createDirectory(at: notesDirectory, withIntermediateDirectories: true)
-        // Set directory permissions to 700
         try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: notesDirectory.path)
     }
+}
+
+extension Notification.Name {
+    static let tamperedNotesDetected = Notification.Name("TokenDepot.tamperedNotesDetected")
 }

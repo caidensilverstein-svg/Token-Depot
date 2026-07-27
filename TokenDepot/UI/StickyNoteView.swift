@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 
 // MARK: — NoteViewModel
 
@@ -13,6 +14,8 @@ final class NoteViewModel: ObservableObject {
     var size: CGSize
     var title: String
 
+    private var saveCancellable: AnyCancellable?
+
     init(note: Note) {
         self.id        = note.id
         self.title     = note.title
@@ -21,6 +24,12 @@ final class NoteViewModel: ObservableObject {
         self.position  = note.position
         self.size      = note.size
         self.createdAt = note.createdAt
+
+        // Debounce saves — 500ms after last keystroke, not on every character
+        saveCancellable = $content
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .dropFirst()
+            .sink { [weak self] _ in self?.save() }
     }
 
     var asNote: Note {
@@ -31,6 +40,12 @@ final class NoteViewModel: ObservableObject {
         guard let key = AuthManager.shared.activeKey() else { return }
         try? NoteStore.shared.save(note: asNote, key: key)
     }
+
+    func saveImmediate() {
+        // Called on window close / color change — bypass debounce
+        saveCancellable?.cancel()
+        save()
+    }
 }
 
 // MARK: — StickyNoteView
@@ -38,7 +53,6 @@ final class NoteViewModel: ObservableObject {
 struct StickyNoteView: View {
 
     @ObservedObject var vm: NoteViewModel
-    // Use a closure to close instead of weak window ref — avoids dangling pointer crash
     var onClose: (() -> Void)?
 
     @State private var showDeleteConfirm = false
@@ -59,7 +73,6 @@ struct StickyNoteView: View {
             }
         }
         .privacySensitive()
-        // Force focus into editor on appear
         .onAppear { editorFocused = true }
         .alert("Delete Note", isPresented: $showDeleteConfirm) {
             SecureField("Enter master password", text: $deletePassword)
@@ -83,7 +96,10 @@ struct StickyNoteView: View {
                 Circle()
                     .fill(colorForNote(color))
                     .frame(width: 10, height: 10)
-                    .onTapGesture { vm.color = color; vm.save() }
+                    .onTapGesture {
+                        vm.color = color
+                        vm.saveImmediate()
+                    }
             }
             Spacer()
             Button { showDeleteConfirm = true } label: {
@@ -95,7 +111,6 @@ struct StickyNoteView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        // Clicking title bar area makes window key so editor gets focus
         .contentShape(Rectangle())
         .onTapGesture { editorFocused = true }
     }
@@ -111,7 +126,8 @@ struct StickyNoteView: View {
             .focused($editorFocused)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .onChange(of: vm.content) { _ in vm.save() }
+            // Fixed deprecation: use two-parameter onChange
+            .onChange(of: vm.content) { _, _ in }  // debounce in VM handles saves
     }
 
     // MARK: — Delete
@@ -128,7 +144,7 @@ struct StickyNoteView: View {
 
         deletePassword = ""
         deleteError    = false
-
+        vm.saveImmediate()
         try? NoteStore.shared.delete(note: vm.asNote)
         DispatchQueue.main.async { onClose?() }
     }

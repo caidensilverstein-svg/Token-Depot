@@ -11,7 +11,6 @@ final class MenuBarController: NSObject {
 
     private override init() {
         super.init()
-        // Setup must happen on main thread
         DispatchQueue.main.async { self.setupMenuBar() }
     }
 
@@ -26,7 +25,6 @@ final class MenuBarController: NSObject {
                 img.isTemplate = true
                 button.image = img
             } else {
-                // Fallback text if symbol missing
                 button.title = "TD"
             }
         }
@@ -38,6 +36,7 @@ final class MenuBarController: NSObject {
         let menu = NSMenu()
 
         let newItem = NSMenuItem(title: "New Note", action: #selector(newNote), keyEquivalent: "n")
+        newItem.keyEquivalentModifierMask = .command
         newItem.target = self
         menu.addItem(newItem)
 
@@ -87,9 +86,7 @@ final class MenuBarController: NSObject {
 
     func closeAllWindows() {
         let ids = Array(noteWindows.keys)
-        for id in ids {
-            noteWindows[id]?.close()
-        }
+        for id in ids { noteWindows[id]?.close() }
         noteWindows.removeAll()
     }
 
@@ -97,7 +94,9 @@ final class MenuBarController: NSObject {
 
     @objc private func newNote() {
         guard let key = AuthManager.shared.activeKey() else { return }
-        let note = Note()
+        // Stagger new note position so they don't all pile up
+        let pos  = NoteStore.shared.nextNotePosition()
+        let note = Note(position: pos)
         try? NoteStore.shared.save(note: note, key: key)
         openNote(note)
     }
@@ -120,7 +119,6 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func quitApp() {
-        // Wipe session key from memory before quitting
         NoteStore.shared.clearMemory()
         AuthManager.shared.lock()
         NSApp.terminate(nil)

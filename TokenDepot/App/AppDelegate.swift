@@ -7,15 +7,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var unlockWindow: NSWindow?
     private var setupWindow: NSWindow?
     private var authCancellable: AnyCancellable?
+    private var tamperCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Init menubar FIRST before activation policy change
         _ = MenuBarController.shared
-
-        // Accessory = no dock icon, menubar only
         NSApp.setActivationPolicy(.accessory)
 
-        // Screen lock observer
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(screenDidLock),
@@ -30,14 +27,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        // Watch auth state via Combine
+        // Tamper detection alert
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleTamperedNotes(_:)),
+            name: .tamperedNotesDetected,
+            object: nil
+        )
+
         authCancellable = AuthManager.shared.$isUnlocked
             .receive(on: DispatchQueue.main)
             .sink { [weak self] unlocked in
                 if unlocked { self?.onUnlocked() }
             }
 
-        // Boot
         if !AuthManager.shared.isSetup {
             showSetupFlow()
         } else {
@@ -45,9 +48,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: — ⌘Q to quit
+    // MARK: — Quit
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        NoteStore.shared.clearMemory()
+        AuthManager.shared.lock()
         return .terminateNow
     }
 
@@ -60,6 +65,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         showUnlockScreen()
     }
 
+    // MARK: — Tamper Alert
+
+    @objc private func handleTamperedNotes(_ notification: Notification) {
+        guard let ids = notification.object as? [String], !ids.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = "Tampered Notes Detected"
+        alert.informativeText = "\(ids.count) note file(s) failed authentication and were skipped. This may indicate tampering or file corruption.\n\nAffected IDs:\n\(ids.joined(separator: "\n"))"
+        alert.alertStyle = .critical
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
     // MARK: — Auth Flow
 
     private func onUnlocked() {
@@ -70,12 +87,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         guard let key = AuthManager.shared.activeKey() else { return }
 
-        // Load notes on background thread — KDF already done, this is just disk I/O
         Task.detached(priority: .userInitiated) {
             try? NoteStore.shared.loadAll(key: key)
             await MainActor.run {
                 if NoteStore.shared.notes.isEmpty {
-                    let note = Note()
+                    // Use staggered position for first note
+                    let pos = NoteStore.shared.nextNotePosition()
+                    var note = Note()
+                    note = Note(id: note.id, title: note.title, content: note.content,
+                                color: note.color, position: pos, size: note.size)
                     try? NoteStore.shared.save(note: note, key: key)
                 }
                 MenuBarController.shared.openNotes(NoteStore.shared.notes)
@@ -91,7 +111,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 340, height: 440),
             styleMask: [.titled, .closable],
@@ -127,8 +146,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupWindow = window
     }
 }
-
-// MARK: — NSWindowDelegate
 
 extension AppDelegate: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
