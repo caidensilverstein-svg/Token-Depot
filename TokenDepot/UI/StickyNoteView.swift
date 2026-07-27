@@ -63,3 +63,30 @@ final class SecureNSTextView: NSTextView {
     override func isAccessibilityElement() -> Bool { false }
     override func accessibilityRole() -> NSAccessibility.Role? { .unknown }
 }
+
+extension SecureNSTextView {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command else {
+            return super.performKeyEquivalent(with: event)
+        }
+        switch event.charactersIgnoringModifiers {
+        case "v":
+            paste(nil)
+            return true
+        case "a":
+            selectAll(nil)
+            return true
+        case "c":
+            copy(nil)
+            return true
+        case "x":
+            cut(nil)
+            return true
+        case "z":
+            undoManager?.undo()
+            return true
+        default:
+            return super.performKeyEquivalent(with: event)
+        }
+    }
+}
