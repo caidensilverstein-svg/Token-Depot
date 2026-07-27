@@ -46,124 +46,87 @@ final class NoteViewModel: ObservableObject {
     }
 }
 
-// MARK: — SecureNSTextView (NSTextView subclass with paste override)
+// MARK: — SecureNSTextView
 
 final class SecureNSTextView: NSTextView {
 
-    // Override paste to force plain text — strips rich text/formatting
     override func paste(_ sender: Any?) {
         let pb = NSPasteboard.general
         if let str = pb.string(forType: .string) {
             insertText(str, replacementRange: selectedRange())
-        } else if let str = pb.string(forType: .URL) {
-            insertText(str, replacementRange: selectedRange())
         }
     }
 
-    // Also handle pasteAsPlainText
     override func pasteAsPlainText(_ sender: Any?) {
         paste(sender)
     }
 
-    // Block AX entirely at the NSTextView level
-    override func isAccessibilityElement() -> Bool { return false }
-    override func accessibilityRole() -> NSAccessibility.Role? { return .unknown }
+    override func isAccessibilityElement() -> Bool { false }
+    override func accessibilityRole() -> NSAccessibility.Role? { .unknown }
 }
 
-// MARK: — SecureTextEditor (NSViewRepresentable — AX tree fully opted out)
+// MARK: — SecureTextEditor
 
-/// Replaces SwiftUI TextEditor. NSTextView with accessibility disabled so
-/// osascript / AXIsProcessTrusted scrapers cannot read note content.
 struct SecureTextEditor: NSViewRepresentable {
 
     @Binding var text: String
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSScrollView()
-        scrollView.hasVerticalScroller = false
-        scrollView.hasHorizontalScroller = false
+        // Use the factory method — this correctly sizes everything
+        let scrollView = SecureNSTextView.scrollableTextView()
 
-        let contentSize = scrollView.contentSize
-        let textView = SecureNSTextView(frame: NSRect(origin: .zero, size: contentSize))
-        textView.minSize = NSSize(width: 0, height: contentSize.height)
-        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = false
-        textView.autoresizingMask = [.width]
-        textView.textContainer?.containerSize = NSSize(width: contentSize.width, height: CGFloat.greatestFiniteMagnitude)
-        textView.textContainer?.widthTracksTextView = true
+        guard let textView = scrollView.documentView as? SecureNSTextView else {
+            return scrollView
+        }
 
-        scrollView.documentView = textView
-
-        // Appearance
-        textView.font = NSFont.systemFont(ofSize: 13)
-        textView.textColor = NSColor.black.withAlphaComponent(0.85)
-        textView.backgroundColor = .clear
-        textView.drawsBackground = false
-        textView.isRichText = false
-        textView.isEditable = true
-        textView.isSelectable = true
-        textView.allowsUndo = true
-        textView.textContainerInset = NSSize(width: 10, height: 8)
+        textView.font                               = .systemFont(ofSize: 13)
+        textView.textColor                          = NSColor.black.withAlphaComponent(0.85)
+        textView.backgroundColor                    = .clear
+        textView.drawsBackground                    = false
+        textView.isRichText                         = false
+        textView.isEditable                         = true
+        textView.isSelectable                       = true
+        textView.allowsUndo                         = true
+        textView.textContainerInset                 = NSSize(width: 10, height: 8)
         textView.isAutomaticQuoteSubstitutionEnabled = false
-        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled  = false
         textView.isAutomaticSpellingCorrectionEnabled = false
-        // Explicitly allow paste operations
-        textView.importsGraphics = false
-        textView.usesFindPanel = false
+        textView.importsGraphics                    = false
+        textView.usesFindPanel                      = false
 
-        // Scroll view appearance
-        scrollView.backgroundColor = .clear
-        scrollView.drawsBackground = false
-        scrollView.hasVerticalScroller = false
+        scrollView.backgroundColor  = .clear
+        scrollView.drawsBackground  = false
+        scrollView.hasVerticalScroller   = false
         scrollView.hasHorizontalScroller = false
 
-        // SECURITY: opt entire view tree out of accessibility
-        // Prevents osascript / AX API from reading note content
         textView.setAccessibilityElement(false)
         textView.setAccessibilityRole(.unknown)
-        textView.setAccessibilityLabel("")
         scrollView.setAccessibilityElement(false)
-        scrollView.setAccessibilityRole(.unknown)
 
         textView.delegate = context.coordinator
-
-        // Grab first responder as soon as view appears
-        DispatchQueue.main.async {
-            textView.window?.makeFirstResponder(textView)
-        }
+        textView.string   = text
 
         return scrollView
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let textView = scrollView.documentView as? NSTextView else { return }
-        // Only update if changed to avoid cursor jumping
+        guard let textView = scrollView.documentView as? SecureNSTextView else { return }
         if textView.string != text {
+            let sel = textView.selectedRange()
             textView.string = text
+            textView.setSelectedRange(sel)
         }
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: SecureTextEditor
         init(_ parent: SecureTextEditor) { self.parent = parent }
 
         func textDidChange(_ notification: Notification) {
-            guard let textView = notification.object as? NSTextView else { return }
-            parent.text = textView.string
-        }
-
-        // Force plain text paste — strips formatting, always works
-        @objc func paste(_ sender: Any?) {
-            guard let textView = sender as? NSTextView else { return }
-            let pb = NSPasteboard.general
-            if let str = pb.string(forType: .string) {
-                textView.insertText(str, replacementRange: textView.selectedRange())
-            }
+            guard let tv = notification.object as? NSTextView else { return }
+            parent.text = tv.string
         }
     }
 }
@@ -176,8 +139,8 @@ struct StickyNoteView: View {
     var onClose: (() -> Void)?
 
     @State private var showDeleteConfirm = false
-    @State private var deletePassword = ""
-    @State private var deleteError = false
+    @State private var deletePassword    = ""
+    @State private var deleteError       = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -195,18 +158,12 @@ struct StickyNoteView: View {
         .alert("Delete Note", isPresented: $showDeleteConfirm) {
             SecureField("Enter master password", text: $deletePassword)
             Button("Delete", role: .destructive) { confirmDelete() }
-            Button("Cancel", role: .cancel) {
-                deletePassword = ""
-                deleteError = false
-            }
+            Button("Cancel", role: .cancel) { deletePassword = ""; deleteError = false }
         } message: {
-            Text(deleteError
-                 ? "Wrong password. Try again."
-                 : "Enter your master password to permanently delete this note.")
+            Text(deleteError ? "Wrong password. Try again."
+                             : "Enter your master password to permanently delete this note.")
         }
     }
-
-    // MARK: — Title Bar
 
     private var titleBar: some View {
         HStack(spacing: 6) {
@@ -214,10 +171,7 @@ struct StickyNoteView: View {
                 Circle()
                     .fill(colorForNote(color))
                     .frame(width: 10, height: 10)
-                    .onTapGesture {
-                        vm.color = color
-                        vm.saveImmediate()
-                    }
+                    .onTapGesture { vm.color = color; vm.saveImmediate() }
             }
             Spacer()
             Button { showDeleteConfirm = true } label: {
@@ -232,26 +186,21 @@ struct StickyNoteView: View {
         .contentShape(Rectangle())
     }
 
-    // MARK: — Delete
-
     private func confirmDelete() {
-        guard let salt       = try? KeychainManager.load(key: "td.passwordSalt"),
-              let storedHash = try? KeychainManager.load(key: "td.passwordHash"),
-              let candidate  = try? KeyDerivation.hashForStorage(value: deletePassword, salt: salt)
+        guard let salt      = try? KeychainManager.load(key: "td.passwordSalt"),
+              let stored    = try? KeychainManager.load(key: "td.passwordHash"),
+              let candidate = try? KeyDerivation.hashForStorage(value: deletePassword, salt: salt)
         else { deleteError = true; deletePassword = ""; return }
 
-        guard KeyDerivation.constantTimeEqual(storedHash, candidate) else {
+        guard KeyDerivation.constantTimeEqual(stored, candidate) else {
             deleteError = true; deletePassword = ""; return
         }
 
-        deletePassword = ""
-        deleteError    = false
+        deletePassword = ""; deleteError = false
         vm.saveImmediate()
         try? NoteStore.shared.delete(note: vm.asNote)
         DispatchQueue.main.async { onClose?() }
     }
-
-    // MARK: — Colors
 
     private var noteColor: Color { colorForNote(vm.color) }
 
