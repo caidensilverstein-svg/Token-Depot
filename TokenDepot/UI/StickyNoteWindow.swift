@@ -18,7 +18,8 @@ class StickyNoteWindow: NSWindow {
         super.init(
             contentRect: NSRect(x: note.position.x, y: note.position.y,
                                 width: note.size.width, height: note.size.height),
-            styleMask: [.borderless, .resizable],
+            // .titled gives proper keyboard/focus handling; we hide the titlebar visually
+            styleMask: [.titled, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -36,6 +37,12 @@ class StickyNoteWindow: NSWindow {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         minSize = NSSize(width: 160, height: 120)
         sharingType = .none
+        // Hide title bar while keeping .titled style for proper keyboard routing
+        titlebarAppearsTransparent = true
+        titleVisibility = .hidden
+        standardWindowButton(.closeButton)?.isHidden = true
+        standardWindowButton(.miniaturizeButton)?.isHidden = true
+        standardWindowButton(.zoomButton)?.isHidden = true
     }
 
     private func buildView() {
