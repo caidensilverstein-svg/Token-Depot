@@ -107,11 +107,12 @@ class StickyNoteWindow: NSWindow {
     }
 
     private func buildTitleBar() -> NSView {
-        let bar = NSView()
+        let barWidth = frame.width
+        let bar = NSView(frame: NSRect(x: 0, y: 0, width: barWidth, height: 30))
         bar.wantsLayer = true
-        bar.translatesAutoresizingMaskIntoConstraints = false
+        bar.autoresizingMask = [.width]
 
-        // Color dots
+        // Color dots — left side
         var x: CGFloat = 10
         for color in NoteColor.allCases {
             let dot = ColorDotButton(noteColor: color) { [weak self] selected in
@@ -124,38 +125,32 @@ class StickyNoteWindow: NSWindow {
             x += 16
         }
 
-        // Paste button
-        // Right-side buttons — use a stack anchored to the right edge
-        let btnStack = NSStackView()
-        btnStack.orientation = .horizontal
-        btnStack.spacing = 4
-        btnStack.translatesAutoresizingMaskIntoConstraints = false
+        // Paste button — right side
+        let pasteBtn = NSButton(frame: NSRect(x: barWidth - 44, y: 6, width: 18, height: 18))
+        pasteBtn.bezelStyle = .inline
+        pasteBtn.isBordered = false
+        pasteBtn.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Paste")?
+            .withSymbolConfiguration(.init(pointSize: 10, weight: .regular))
+        pasteBtn.image?.isTemplate = true
+        pasteBtn.contentTintColor = NSColor.black.withAlphaComponent(0.5)
+        pasteBtn.autoresizingMask = [.minXMargin]
+        pasteBtn.target = self
+        pasteBtn.action = #selector(pasteFromClipboard)
+        bar.addSubview(pasteBtn)
 
-        func makeBtn(_ symbol: String, desc: String, action: Selector) -> NSButton {
-            let b = NSButton()
-            b.bezelStyle = .inline
-            b.isBordered = false
-            b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: desc)?
-                .withSymbolConfiguration(.init(pointSize: 10, weight: .regular))
-            b.image?.isTemplate = true
-            b.contentTintColor = NSColor.black.withAlphaComponent(0.5)
-            b.target = self
-            b.action = action
-            b.widthAnchor.constraint(equalToConstant: 18).isActive = true
-            b.heightAnchor.constraint(equalToConstant: 18).isActive = true
-            return b
-        }
+        // Delete button — far right
+        let deleteBtn = NSButton(frame: NSRect(x: barWidth - 22, y: 6, width: 18, height: 18))
+        deleteBtn.bezelStyle = .inline
+        deleteBtn.isBordered = false
+        deleteBtn.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Delete")?
+            .withSymbolConfiguration(.init(pointSize: 10, weight: .bold))
+        deleteBtn.image?.isTemplate = true
+        deleteBtn.contentTintColor = NSColor.black.withAlphaComponent(0.5)
+        deleteBtn.autoresizingMask = [.minXMargin]
+        deleteBtn.target = self
+        deleteBtn.action = #selector(deleteNote)
+        bar.addSubview(deleteBtn)
 
-        btnStack.addArrangedSubview(makeBtn("doc.on.clipboard", desc: "Paste",  action: #selector(pasteFromClipboard)))
-        btnStack.addArrangedSubview(makeBtn("xmark",            desc: "Delete", action: #selector(deleteNote)))
-
-        bar.addSubview(btnStack)
-        NSLayoutConstraint.activate([
-            btnStack.trailingAnchor.constraint(equalTo: bar.trailingAnchor, constant: -8),
-            btnStack.centerYAnchor.constraint(equalTo: bar.centerYAnchor)
-        ])
-
-        bar.autoresizingMask = [.width]
         return bar
     }
 
