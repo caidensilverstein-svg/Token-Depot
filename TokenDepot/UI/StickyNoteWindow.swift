@@ -189,6 +189,33 @@ class StickyNoteWindow: NSWindow {
         super.mouseDown(with: event)
     }
 
+    // Window-level key equivalent handler — forwards cmd shortcuts to first responder
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command else {
+            return super.performKeyEquivalent(with: event)
+        }
+        guard let tv = textView else { return super.performKeyEquivalent(with: event) }
+        switch event.charactersIgnoringModifiers {
+        case "v":
+            tv.paste(nil)
+            return true
+        case "c":
+            tv.copy(nil)
+            return true
+        case "x":
+            tv.cut(nil)
+            return true
+        case "a":
+            tv.selectAll(nil)
+            return true
+        case "z":
+            tv.undoManager?.undo()
+            return true
+        default:
+            return super.performKeyEquivalent(with: event)
+        }
+    }
+
     // MARK: — Position/size
 
     override func setFrameOrigin(_ point: NSPoint) {
