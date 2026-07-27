@@ -125,6 +125,17 @@ class StickyNoteWindow: NSWindow {
             x += 16
         }
 
+        // Copy button
+        let copyBtn = NSButton(frame: NSRect(x: barWidth - 82, y: 5, width: 20, height: 20))
+        copyBtn.bezelStyle = .inline
+        copyBtn.isBordered = false
+        copyBtn.title = "📄"
+        copyBtn.font = .systemFont(ofSize: 13)
+        copyBtn.autoresizingMask = [.minXMargin]
+        copyBtn.target = self
+        copyBtn.action = #selector(copyToClipboard)
+        bar.addSubview(copyBtn)
+
         // Paste button at x=barWidth-56 (clipboard icon)
         let pasteBtn = NSButton(frame: NSRect(x: barWidth - 56, y: 5, width: 20, height: 20))
         pasteBtn.bezelStyle = .inline
@@ -149,6 +160,18 @@ class StickyNoteWindow: NSWindow {
         bar.addSubview(deleteBtn)
 
         return bar
+    }
+
+    @objc private func copyToClipboard() {
+        let selected = textView.selectedRange()
+        let str: String
+        if selected.length > 0 {
+            str = (textView.string as NSString).substring(with: selected)
+        } else {
+            str = textView.string
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(str, forType: .string)
     }
 
     @objc private func pasteFromClipboard() {
