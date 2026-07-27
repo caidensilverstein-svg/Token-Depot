@@ -1,28 +1,20 @@
 import AppKit
 import SwiftUI
+import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var unlockWindow: NSWindow?
     private var setupWindow: NSWindow?
     private var menuBar: MenuBarController?
+    private var authCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Hide from dock — menubar only app
         NSApp.setActivationPolicy(.accessory)
 
-        // Init menubar
         menuBar = MenuBarController.shared
 
-        // Listen for lock/unlock notifications
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(showUnlockScreen),
-            name: .showUnlockScreen,
-            object: nil
-        )
-
-        // Listen for screen lock (display sleep / screensaver)
+        // Listen for screen lock
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(screenDidLock),
@@ -30,13 +22,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        // Auth state observer
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(authStateChanged),
-            name: .init("AuthManager.isUnlockedChanged"),
+            selector: #selector(showUnlockScreen),
+            name: .showUnlockScreen,
             object: nil
         )
+
+        // Watch @Published isUnlocked directly via Combine
+        authCancellable = AuthManager.shared.$isUnlocked
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] unlocked in
+                if unlocked {
+                    self?.onUnlocked()
+                }
+            }
 
         // Boot
         if !AuthManager.shared.isSetup {
@@ -49,7 +49,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: — Screen Lock
 
     @objc private func screenDidLock() {
-        // Auto-lock on screen lock
         MenuBarController.shared.closeAllWindows()
         NoteStore.shared.clearMemory()
         AuthManager.shared.lock()
@@ -58,18 +57,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: — Auth Flow
 
-    @objc private func authStateChanged() {
-        if AuthManager.shared.isUnlocked {
-            onUnlocked()
-        }
-    }
-
     private func onUnlocked() {
         unlockWindow?.close()
         unlockWindow = nil
+        setupWindow?.close()
+        setupWindow = nil
 
         guard let key = AuthManager.shared.activeKey() else { return }
         try? NoteStore.shared.loadAll(key: key)
+
+        // If no notes yet, open one blank note to get started
+        if NoteStore.shared.notes.isEmpty {
+            let note = Note()
+            try? NoteStore.shared.save(note: note, key: key)
+        }
+
         MenuBarController.shared.openNotes(NoteStore.shared.notes)
     }
 
@@ -78,6 +80,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showUnlockScreen() {
         guard unlockWindow == nil else {
             unlockWindow?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
 

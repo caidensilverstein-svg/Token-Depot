@@ -6,35 +6,30 @@ struct StickyNoteView: View {
     @State var note: Note
     weak var window: StickyNoteWindow?
 
-    @State private var isEditingTitle = false
     @State private var showDeleteConfirm = false
     @State private var deletePassword = ""
     @State private var deleteError = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // Note background — rounded, colored
             RoundedRectangle(cornerRadius: 8)
                 .fill(noteColor)
                 .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
 
             VStack(spacing: 0) {
-                // Title bar
                 titleBar
-
-                Divider()
-                    .opacity(0.3)
-
-                // Content area
+                Divider().opacity(0.3)
                 contentArea
             }
         }
-        // Privacy — blocks screenshots and screen recording
         .privacySensitive()
         .alert("Delete Note", isPresented: $showDeleteConfirm) {
             SecureField("Enter master password", text: $deletePassword)
             Button("Delete", role: .destructive) { confirmDelete() }
-            Button("Cancel", role: .cancel) { deletePassword = "" }
+            Button("Cancel", role: .cancel) {
+                deletePassword = ""
+                deleteError = false
+            }
         } message: {
             Text(deleteError ? "Wrong password. Try again." : "Enter your master password to permanently delete this note.")
         }
@@ -44,17 +39,13 @@ struct StickyNoteView: View {
 
     private var titleBar: some View {
         HStack(spacing: 6) {
-            // Color picker dots
             ForEach(NoteColor.allCases, id: \.self) { color in
                 Circle()
                     .fill(colorForNote(color))
                     .frame(width: 10, height: 10)
                     .onTapGesture { changeColor(color) }
             }
-
             Spacer()
-
-            // Delete button
             Button {
                 showDeleteConfirm = true
             } label: {
@@ -103,31 +94,38 @@ struct StickyNoteView: View {
     }
 
     private func confirmDelete() {
-        // Verify master password before deleting
-        do {
-            // Use a temp auth check — don't re-unlock the session
-            try AuthManager.shared.unlock(password: deletePassword)
-            try NoteStore.shared.delete(note: note)
-            window?.close()
-        } catch {
+        // Verify password by re-deriving and comparing hash — don't re-unlock the session
+        guard let salt = try? KeychainManager.load(key: "td.passwordSalt"),
+              let storedHash = try? KeychainManager.load(key: "td.passwordHash"),
+              let candidateHash = try? KeyDerivation.hashForStorage(value: deletePassword, salt: salt) else {
             deleteError = true
             deletePassword = ""
+            return
         }
+
+        guard KeyDerivation.constantTimeEqual(storedHash, candidateHash) else {
+            deleteError = true
+            deletePassword = ""
+            return
+        }
+
+        deletePassword = ""
+        deleteError = false
+        try? NoteStore.shared.delete(note: note)
+        window?.close()
     }
 
     // MARK: — Colors
 
-    private var noteColor: Color {
-        colorForNote(note.color)
-    }
+    private var noteColor: Color { colorForNote(note.color) }
 
     private func colorForNote(_ color: NoteColor) -> Color {
         switch color {
-        case .yellow: return Color(red: 1.0, green: 0.96, blue: 0.6)
+        case .yellow: return Color(red: 1.0,  green: 0.96, blue: 0.6)
         case .blue:   return Color(red: 0.75, green: 0.88, blue: 1.0)
-        case .green:  return Color(red: 0.8, green: 0.97, blue: 0.75)
-        case .pink:   return Color(red: 1.0, green: 0.82, blue: 0.88)
-        case .gray:   return Color(red: 0.9, green: 0.9, blue: 0.92)
+        case .green:  return Color(red: 0.8,  green: 0.97, blue: 0.75)
+        case .pink:   return Color(red: 1.0,  green: 0.82, blue: 0.88)
+        case .gray:   return Color(red: 0.9,  green: 0.9,  blue: 0.92)
         }
     }
 }
