@@ -195,6 +195,7 @@ class StickyNoteWindow: NSWindow {
         guard flags == .command else { return super.performKeyEquivalent(with: event) }
 
         // Use NSApp.sendAction so it goes through the proper responder chain
+        NSLog("[TD] performKeyEquivalent called: %@, firstResponder: %@", event.charactersIgnoringModifiers ?? "nil", String(describing: firstResponder))
         switch event.charactersIgnoringModifiers {
         case "v":
             NSApp.sendAction(#selector(NSText.paste(_:)), to: firstResponder, from: self)

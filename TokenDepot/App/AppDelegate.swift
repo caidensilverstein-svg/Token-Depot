@@ -11,6 +11,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var globalMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        buildEditMenu()
         _ = MenuBarController.shared
 
         DistributedNotificationCenter.default().addObserver(
@@ -208,5 +209,31 @@ extension AppDelegate: NSWindowDelegate {
         if window === unlockWindow {
             unlockWindow = nil
         }
+    }
+}
+
+extension AppDelegate {
+    func buildEditMenu() {
+        let mainMenu = NSMenu()
+
+        // App menu (required)
+        let appMenuItem = NSMenuItem()
+        mainMenu.addItem(appMenuItem)
+        let appMenu = NSMenu()
+        appMenu.addItem(NSMenuItem(title: "Quit TokenDepot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        appMenuItem.submenu = appMenu
+
+        // Edit menu — required for cmd shortcuts to route correctly
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: "Edit")
+        editMenu.addItem(NSMenuItem(title: "Cut",        action: #selector(NSText.cut(_:)),       keyEquivalent: "x"))
+        editMenu.addItem(NSMenuItem(title: "Copy",       action: #selector(NSText.copy(_:)),      keyEquivalent: "c"))
+        editMenu.addItem(NSMenuItem(title: "Paste",      action: #selector(NSText.paste(_:)),     keyEquivalent: "v"))
+        editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+        editMenu.addItem(NSMenuItem(title: "Undo",       action: #selector(UndoManager.undo),     keyEquivalent: "z"))
+        editMenuItem.submenu = editMenu
+
+        NSApp.mainMenu = mainMenu
     }
 }
