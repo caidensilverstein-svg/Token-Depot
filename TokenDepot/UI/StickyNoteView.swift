@@ -1,7 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// Observable wrapper around a Note so SwiftUI views can bind to it directly.
+// MARK: — NoteViewModel
+
 final class NoteViewModel: ObservableObject {
     @Published var content: String
     @Published var color: NoteColor
@@ -23,14 +24,7 @@ final class NoteViewModel: ObservableObject {
     }
 
     var asNote: Note {
-        Note(
-            id: id,
-            title: title,
-            content: content,
-            color: color,
-            position: position,
-            size: size
-        )
+        Note(id: id, title: title, content: content, color: color, position: position, size: size)
     }
 
     func save() {
@@ -38,6 +32,8 @@ final class NoteViewModel: ObservableObject {
         try? NoteStore.shared.save(note: asNote, key: key)
     }
 }
+
+// MARK: — StickyNoteView
 
 struct StickyNoteView: View {
 
@@ -86,9 +82,7 @@ struct StickyNoteView: View {
                     .onTapGesture { vm.color = color; vm.save() }
             }
             Spacer()
-            Button {
-                showDeleteConfirm = true
-            } label: {
+            Button { showDeleteConfirm = true } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.black.opacity(0.5))
@@ -115,17 +109,26 @@ struct StickyNoteView: View {
     // MARK: — Delete
 
     private func confirmDelete() {
-        guard let salt = try? KeychainManager.load(key: "td.passwordSalt"),
-              let storedHash = try? KeychainManager.load(key: "td.passwordHash"),
-              let candidateHash = try? KeyDerivation.hashForStorage(value: deletePassword, salt: salt) else {
+        guard let salt        = try? KeychainManager.load(key: "td.passwordSalt"),
+              let storedHash  = try? KeychainManager.load(key: "td.passwordHash"),
+              let candidate   = try? KeyDerivation.hashForStorage(value: deletePassword, salt: salt)
+        else { deleteError = true; deletePassword = ""; return }
+
+        guard KeyDerivation.constantTimeEqual(storedHash, candidate) else {
             deleteError = true; deletePassword = ""; return
         }
-        guard KeyDerivation.constantTimeEqual(storedHash, candidateHash) else {
-            deleteError = true; deletePassword = ""; return
-        }
-        deletePassword = ""; deleteError = false
+
+        deletePassword = ""
+        deleteError    = false
+
+        // Delete from store first, then close window
+        // NoteStore removes from its in-memory list; window delegate cleans up noteWindows dict
         try? NoteStore.shared.delete(note: vm.asNote)
-        window?.close()
+
+        // Close on next run loop tick so SwiftUI finishes the alert dismissal first
+        DispatchQueue.main.async {
+            self.window?.close()
+        }
     }
 
     // MARK: — Colors

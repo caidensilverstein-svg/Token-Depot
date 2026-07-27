@@ -41,9 +41,7 @@ final class MenuBarController: NSObject {
     // MARK: — Note Window Management
 
     func openNotes(_ notes: [Note]) {
-        for note in notes {
-            openNote(note)
-        }
+        for note in notes { openNote(note) }
     }
 
     func openNote(_ note: Note) {
@@ -51,7 +49,6 @@ final class MenuBarController: NSObject {
             noteWindows[note.id]?.makeKeyAndOrderFront(nil)
             return
         }
-
         let window = StickyNoteWindow(note: note)
         window.delegate = self
         noteWindows[note.id] = window
@@ -59,9 +56,7 @@ final class MenuBarController: NSObject {
     }
 
     func closeAllWindows() {
-        for window in noteWindows.values {
-            window.close()
-        }
+        noteWindows.values.forEach { $0.close() }
         noteWindows.removeAll()
     }
 
@@ -86,11 +81,6 @@ final class MenuBarController: NSObject {
         closeAllWindows()
         NoteStore.shared.clearMemory()
         AuthManager.shared.lock()
-        showUnlockWindow()
-    }
-
-    private func showUnlockWindow() {
-        // Posted to AppDelegate to show unlock UI
         NotificationCenter.default.post(name: .showUnlockScreen, object: nil)
     }
 }
@@ -98,7 +88,8 @@ final class MenuBarController: NSObject {
 extension MenuBarController: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? StickyNoteWindow else { return }
-        noteWindows.removeValue(forKey: window.note.id)
+        // Use noteId (the renamed property) instead of window.note.id
+        noteWindows.removeValue(forKey: window.noteId)
     }
 }
 
