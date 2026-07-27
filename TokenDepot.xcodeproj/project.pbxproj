@@ -1,0 +1,432 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A101 /* TokenDepotApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F101 /* TokenDepotApp.swift */; };
+		A102 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F102 /* AppDelegate.swift */; };
+		A103 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F103 /* CryptoEngine.swift */; };
+		A104 /* KeyDerivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F104 /* KeyDerivation.swift */; };
+		A105 /* SecureMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = F105 /* SecureMemory.swift */; };
+		A106 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F106 /* AuthManager.swift */; };
+		A107 /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F107 /* KeychainManager.swift */; };
+		A108 /* RateLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F108 /* RateLimiter */; };
+		A109 /* RecoveryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F109 /* RecoveryManager.swift */; };
+		A110 /* NoteFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = F110 /* NoteFile.swift */; };
+		A111 /* NoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F111 /* NoteStore.swift */; };
+		A112 /* SecureWipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = F112 /* SecureWipe.swift */; };
+		A113 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F113 /* MenuBarController.swift */; };
+		A114 /* StickyNoteWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F114 /* StickyNoteWindow.swift */; };
+		A115 /* StickyNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F115 /* StickyNoteView.swift */; };
+		A116 /* UnlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F116 /* UnlockView.swift */; };
+		A117 /* RecoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F117 /* RecoveryView.swift */; };
+		A118 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F118 /* SetupView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		F101 /* TokenDepotApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenDepotApp.swift; sourceTree = "<group>"; };
+		F102 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		F103 /* CryptoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoEngine.swift; sourceTree = "<group>"; };
+		F104 /* KeyDerivation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDerivation.swift; sourceTree = "<group>"; };
+		F105 /* SecureMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureMemory.swift; sourceTree = "<group>"; };
+		F106 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		F107 /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainManager.swift; sourceTree = "<group>"; };
+		F108 /* RateLimiter */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateLimiter.swift; sourceTree = "<group>"; };
+		F109 /* RecoveryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryManager.swift; sourceTree = "<group>"; };
+		F110 /* NoteFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteFile.swift; sourceTree = "<group>"; };
+		F111 /* NoteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStore.swift; sourceTree = "<group>"; };
+		F112 /* SecureWipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureWipe.swift; sourceTree = "<group>"; };
+		F113 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
+		F114 /* StickyNoteWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteWindow.swift; sourceTree = "<group>"; };
+		F115 /* StickyNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteView.swift; sourceTree = "<group>"; };
+		F116 /* UnlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockView.swift; sourceTree = "<group>"; };
+		F117 /* RecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryView.swift; sourceTree = "<group>"; };
+		F118 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
+		FAPP /* TokenDepot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TokenDepot.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FPLIST /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FENTS /* TokenDepot.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TokenDepot.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BPFR /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		GMAIN /* TokenDepot */ = {
+			isa = PBXGroup;
+			children = (
+				GAPP /* App */,
+				GCRY /* Crypto */,
+				GAUT /* Auth */,
+				GSTO /* Storage */,
+				GUI  /* UI */,
+				FPLIST /* Info.plist */,
+				FENTS /* TokenDepot.entitlements */,
+			);
+			path = TokenDepot;
+			sourceTree = "<group>";
+		};
+		GAPP /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F101 /* TokenDepotApp.swift */,
+				F102 /* AppDelegate.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		GCRY /* Crypto */ = {
+			isa = PBXGroup;
+			children = (
+				F103 /* CryptoEngine.swift */,
+				F104 /* KeyDerivation.swift */,
+				F105 /* SecureMemory.swift */,
+			);
+			path = Crypto;
+			sourceTree = "<group>";
+		};
+		GAUT /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				F106 /* AuthManager.swift */,
+				F107 /* KeychainManager.swift */,
+				F108 /* RateLimiter */,
+				F109 /* RecoveryManager.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		GSTO /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				F110 /* NoteFile.swift */,
+				F111 /* NoteStore.swift */,
+				F112 /* SecureWipe.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		GUI /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				F113 /* MenuBarController.swift */,
+				F114 /* StickyNoteWindow.swift */,
+				F115 /* StickyNoteView.swift */,
+				F116 /* UnlockView.swift */,
+				F117 /* RecoveryView.swift */,
+				F118 /* SetupView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		GROOT /* root */ = {
+			isa = PBXGroup;
+			children = (
+				GMAIN /* TokenDepot */,
+				GPROD /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		GPROD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FAPP /* TokenDepot.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		TARG /* TokenDepot */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BCLLIST /* Build configuration list for PBXNativeTarget "TokenDepot" */;
+			buildPhases = (
+				BPSRC /* Sources */,
+				BPFR /* Frameworks */,
+				BPRES /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TokenDepot;
+			productName = TokenDepot;
+			productReference = FAPP /* TokenDepot.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		PROJ /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					TARG = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = BCLPROJ /* Build configuration list for PBXProject "TokenDepot" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = GROOT;
+			productRefGroup = GPROD /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				TARG /* TokenDepot */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		BPRES /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BPSRC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A101 /* TokenDepotApp.swift in Sources */,
+				A102 /* AppDelegate.swift in Sources */,
+				A103 /* CryptoEngine.swift in Sources */,
+				A104 /* KeyDerivation.swift in Sources */,
+				A105 /* SecureMemory.swift in Sources */,
+				A106 /* AuthManager.swift in Sources */,
+				A107 /* KeychainManager.swift in Sources */,
+				A108 /* RateLimiter.swift in Sources */,
+				A109 /* RecoveryManager.swift in Sources */,
+				A110 /* NoteFile.swift in Sources */,
+				A111 /* NoteStore.swift in Sources */,
+				A112 /* SecureWipe.swift in Sources */,
+				A113 /* MenuBarController.swift in Sources */,
+				A114 /* StickyNoteWindow.swift in Sources */,
+				A115 /* StickyNoteView.swift in Sources */,
+				A116 /* UnlockView.swift in Sources */,
+				A117 /* RecoveryView.swift in Sources */,
+				A118 /* SetupView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		BCDEBUG /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_CYCLE = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		BCRELEASE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_CYCLE = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		BCTDEBUG /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = TokenDepot/TokenDepot.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TokenDepot/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.silversteincapital.tokendepot";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BCTRELEASE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = TokenDepot/TokenDepot.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TokenDepot/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.silversteincapital.tokendepot";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BCLPROJ /* Build configuration list for PBXProject "TokenDepot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BCDEBUG /* Debug */,
+				BCRELEASE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BCLLIST /* Build configuration list for PBXNativeTarget "TokenDepot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BCTDEBUG /* Debug */,
+				BCTRELEASE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = PROJ /* Project object */;
+}
