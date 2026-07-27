@@ -35,10 +35,7 @@ class StickyNoteWindow: NSWindow {
         isMovableByWindowBackground = true
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         minSize = NSSize(width: 160, height: 120)
-
-        // Block screenshot APIs
         sharingType = .none
-
         acceptsMouseMovedEvents = true
     }
 
@@ -48,24 +45,39 @@ class StickyNoteWindow: NSWindow {
         })
         let hosting = NSHostingView(rootView: view)
         hosting.wantsLayer = true
-
-        // Gemini concern #5: opt out of accessibility tree
-        // Prevents AXIsProcessTrusted() scraping of decrypted note content
         hosting.setAccessibilityElement(false)
         hosting.setAccessibilityRole(.unknown)
-
         contentView = hosting
     }
-
-    // MARK: — Key window (required for TextEditor focus in borderless window)
 
     override var canBecomeKey: Bool  { true }
     override var canBecomeMain: Bool { true }
 
     override func mouseDown(with event: NSEvent) {
-        makeKey()
+        // Activate app and make key BEFORE passing event so text view gets focus
         NSApp.activate(ignoringOtherApps: true)
+        makeKeyAndOrderFront(nil)
+
         super.mouseDown(with: event)
+
+        // Force first responder to the text view after click
+        DispatchQueue.main.async { [weak self] in
+            self?.makeFirstResponderToTextView()
+        }
+    }
+
+    func makeFirstResponderToTextView() {
+        // Walk the view hierarchy to find SecureNSTextView and make it first responder
+        func findTextView(in view: NSView) -> SecureNSTextView? {
+            if let tv = view as? SecureNSTextView { return tv }
+            for sub in view.subviews {
+                if let found = findTextView(in: sub) { return found }
+            }
+            return nil
+        }
+        if let tv = contentView.flatMap({ findTextView(in: $0) }) {
+            makeFirstResponder(tv)
+        }
     }
 
     // MARK: — Save position/size on move/resize

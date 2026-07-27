@@ -127,6 +127,12 @@ struct SecureTextEditor: NSViewRepresentable {
         scrollView.setAccessibilityRole(.unknown)
 
         textView.delegate = context.coordinator
+
+        // Grab first responder as soon as view appears
+        DispatchQueue.main.async {
+            textView.window?.makeFirstResponder(textView)
+        }
+
         return scrollView
     }
 
