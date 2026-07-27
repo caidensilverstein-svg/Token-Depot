@@ -90,3 +90,23 @@ extension SecureNSTextView {
         }
     }
 }
+
+extension SecureNSTextView {
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = NSMenu()
+        let paste = NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "")
+        paste.target = self
+        menu.addItem(paste)
+        let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
+        copy.target = self
+        menu.addItem(copy)
+        let cut = NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "")
+        cut.target = self
+        menu.addItem(cut)
+        menu.addItem(.separator())
+        let all = NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "")
+        all.target = self
+        menu.addItem(all)
+        return menu
+    }
+}
