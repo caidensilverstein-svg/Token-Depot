@@ -189,27 +189,27 @@ class StickyNoteWindow: NSWindow {
         super.mouseDown(with: event)
     }
 
-    // Window-level key equivalent handler — forwards cmd shortcuts to first responder
+    // Route cmd shortcuts directly through the responder chain to the text view
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command else {
-            return super.performKeyEquivalent(with: event)
-        }
-        guard let tv = textView else { return super.performKeyEquivalent(with: event) }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard flags == .command else { return super.performKeyEquivalent(with: event) }
+
+        // Use NSApp.sendAction so it goes through the proper responder chain
         switch event.charactersIgnoringModifiers {
         case "v":
-            tv.paste(nil)
+            NSApp.sendAction(#selector(NSText.paste(_:)), to: firstResponder, from: self)
             return true
         case "c":
-            tv.copy(nil)
+            NSApp.sendAction(#selector(NSText.copy(_:)), to: firstResponder, from: self)
             return true
         case "x":
-            tv.cut(nil)
+            NSApp.sendAction(#selector(NSText.cut(_:)), to: firstResponder, from: self)
             return true
         case "a":
-            tv.selectAll(nil)
+            NSApp.sendAction(#selector(NSText.selectAll(_:)), to: firstResponder, from: self)
             return true
         case "z":
-            tv.undoManager?.undo()
+            NSApp.sendAction(Selector(("undo:")), to: firstResponder, from: self)
             return true
         default:
             return super.performKeyEquivalent(with: event)
