@@ -7,11 +7,8 @@
 	<array>
 		<string>$(AppIdentifierPrefix)com.silversteincapital.tokendepot</string>
 	</array>
-	<!-- App Sandbox OFF — needed for floating windows + file system access -->
+	<!-- App Sandbox OFF — needed for floating windows + unrestricted file access -->
 	<key>com.apple.security.app-sandbox</key>
-	<false/>
-	<!-- Required for LocalAuthentication / TouchID -->
-	<key>com.apple.security.personal-information.location</key>
 	<false/>
 </dict>
 </plist>

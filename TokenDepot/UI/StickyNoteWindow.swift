@@ -5,8 +5,7 @@ import SwiftUI
 class StickyNoteWindow: NSWindow {
 
     let noteId: UUID
-    private let vm: NoteViewModel
-    private var hostingView: NSHostingView<StickyNoteView>?
+    let vm: NoteViewModel
 
     init(note: Note) {
         self.noteId = note.id
@@ -37,17 +36,32 @@ class StickyNoteWindow: NSWindow {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         minSize = NSSize(width: 160, height: 120)
         sharingType = .none
+        // Accept mouse/keyboard events even when app is not active
+        acceptsMouseMovedEvents = true
     }
 
     private func setContent() {
-        let view = StickyNoteView(vm: vm, window: self)
+        // Pass close callback instead of weak self ref — avoids EXC_BAD_ACCESS
+        let view = StickyNoteView(vm: vm, onClose: { [weak self] in
+            self?.close()
+        })
         let hosting = NSHostingView(rootView: view)
         hosting.wantsLayer = true
         contentView = hosting
-        hostingView = hosting
     }
 
-    // MARK: — Save position on move
+    // MARK: — Make window key on click so TextEditor gets focus
+
+    override func mouseDown(with event: NSEvent) {
+        makeKey()
+        NSApp.activate(ignoringOtherApps: true)
+        super.mouseDown(with: event)
+    }
+
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+
+    // MARK: — Save position/size on move/resize
 
     override func setFrameOrigin(_ point: NSPoint) {
         super.setFrameOrigin(point)

@@ -38,11 +38,13 @@ final class NoteViewModel: ObservableObject {
 struct StickyNoteView: View {
 
     @ObservedObject var vm: NoteViewModel
-    weak var window: StickyNoteWindow?
+    // Use a closure to close instead of weak window ref — avoids dangling pointer crash
+    var onClose: (() -> Void)?
 
     @State private var showDeleteConfirm = false
     @State private var deletePassword = ""
     @State private var deleteError = false
+    @FocusState private var editorFocused: Bool
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -57,6 +59,8 @@ struct StickyNoteView: View {
             }
         }
         .privacySensitive()
+        // Force focus into editor on appear
+        .onAppear { editorFocused = true }
         .alert("Delete Note", isPresented: $showDeleteConfirm) {
             SecureField("Enter master password", text: $deletePassword)
             Button("Delete", role: .destructive) { confirmDelete() }
@@ -91,6 +95,9 @@ struct StickyNoteView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
+        // Clicking title bar area makes window key so editor gets focus
+        .contentShape(Rectangle())
+        .onTapGesture { editorFocused = true }
     }
 
     // MARK: — Content
@@ -101,6 +108,7 @@ struct StickyNoteView: View {
             .foregroundColor(.black.opacity(0.85))
             .background(Color.clear)
             .scrollContentBackground(.hidden)
+            .focused($editorFocused)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .onChange(of: vm.content) { _ in vm.save() }
@@ -109,9 +117,9 @@ struct StickyNoteView: View {
     // MARK: — Delete
 
     private func confirmDelete() {
-        guard let salt        = try? KeychainManager.load(key: "td.passwordSalt"),
-              let storedHash  = try? KeychainManager.load(key: "td.passwordHash"),
-              let candidate   = try? KeyDerivation.hashForStorage(value: deletePassword, salt: salt)
+        guard let salt       = try? KeychainManager.load(key: "td.passwordSalt"),
+              let storedHash = try? KeychainManager.load(key: "td.passwordHash"),
+              let candidate  = try? KeyDerivation.hashForStorage(value: deletePassword, salt: salt)
         else { deleteError = true; deletePassword = ""; return }
 
         guard KeyDerivation.constantTimeEqual(storedHash, candidate) else {
@@ -121,14 +129,8 @@ struct StickyNoteView: View {
         deletePassword = ""
         deleteError    = false
 
-        // Delete from store first, then close window
-        // NoteStore removes from its in-memory list; window delegate cleans up noteWindows dict
         try? NoteStore.shared.delete(note: vm.asNote)
-
-        // Close on next run loop tick so SwiftUI finishes the alert dismissal first
-        DispatchQueue.main.async {
-            self.window?.close()
-        }
+        DispatchQueue.main.async { onClose?() }
     }
 
     // MARK: — Colors

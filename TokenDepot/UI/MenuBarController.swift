@@ -7,7 +7,7 @@ final class MenuBarController: NSObject {
     static let shared = MenuBarController()
 
     private var statusItem: NSStatusItem?
-    private var noteWindows: [UUID: StickyNoteWindow] = [:]
+    private(set) var noteWindows: [UUID: StickyNoteWindow] = [:]
 
     private override init() {
         super.init()
@@ -25,14 +25,14 @@ final class MenuBarController: NSObject {
         }
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "New Note", action: #selector(newNote), keyEquivalent: "n"))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Show All Notes", action: #selector(showAll), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Hide All Notes", action: #selector(hideAll), keyEquivalent: ""))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Lock TokenDepot", action: #selector(lockApp), keyEquivalent: "l"))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "New Note",       action: #selector(newNote),  keyEquivalent: "n"))
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Show All Notes", action: #selector(showAll),  keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Hide All Notes", action: #selector(hideAll),  keyEquivalent: ""))
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Lock",           action: #selector(lockApp),  keyEquivalent: "l"))
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Quit",           action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
 
         menu.items.forEach { $0.target = self }
         statusItem?.menu = menu
@@ -45,8 +45,8 @@ final class MenuBarController: NSObject {
     }
 
     func openNote(_ note: Note) {
-        guard noteWindows[note.id] == nil else {
-            noteWindows[note.id]?.makeKeyAndOrderFront(nil)
+        if let existing = noteWindows[note.id] {
+            existing.makeKeyAndOrderFront(nil)
             return
         }
         let window = StickyNoteWindow(note: note)
@@ -56,7 +56,11 @@ final class MenuBarController: NSObject {
     }
 
     func closeAllWindows() {
-        noteWindows.values.forEach { $0.close() }
+        // Snapshot keys first to avoid mutating dict while iterating via delegate
+        let ids = Array(noteWindows.keys)
+        for id in ids {
+            noteWindows[id]?.close()
+        }
         noteWindows.removeAll()
     }
 
@@ -78,17 +82,21 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func lockApp() {
+        // Close all windows first, then lock, then show unlock screen
         closeAllWindows()
         NoteStore.shared.clearMemory()
         AuthManager.shared.lock()
-        NotificationCenter.default.post(name: .showUnlockScreen, object: nil)
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .showUnlockScreen, object: nil)
+        }
     }
 }
+
+// MARK: — NSWindowDelegate
 
 extension MenuBarController: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? StickyNoteWindow else { return }
-        // Use noteId (the renamed property) instead of window.note.id
         noteWindows.removeValue(forKey: window.noteId)
     }
 }
