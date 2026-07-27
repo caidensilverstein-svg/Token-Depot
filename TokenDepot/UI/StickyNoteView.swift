@@ -1,9 +1,47 @@
 import SwiftUI
 import AppKit
 
+/// Observable wrapper around a Note so SwiftUI views can bind to it directly.
+final class NoteViewModel: ObservableObject {
+    @Published var content: String
+    @Published var color: NoteColor
+
+    let id: UUID
+    let createdAt: Date
+    var position: CGPoint
+    var size: CGSize
+    var title: String
+
+    init(note: Note) {
+        self.id        = note.id
+        self.title     = note.title
+        self.content   = note.content
+        self.color     = note.color
+        self.position  = note.position
+        self.size      = note.size
+        self.createdAt = note.createdAt
+    }
+
+    var asNote: Note {
+        Note(
+            id: id,
+            title: title,
+            content: content,
+            color: color,
+            position: position,
+            size: size
+        )
+    }
+
+    func save() {
+        guard let key = AuthManager.shared.activeKey() else { return }
+        try? NoteStore.shared.save(note: asNote, key: key)
+    }
+}
+
 struct StickyNoteView: View {
 
-    @State var note: Note
+    @ObservedObject var vm: NoteViewModel
     weak var window: StickyNoteWindow?
 
     @State private var showDeleteConfirm = false
@@ -31,7 +69,9 @@ struct StickyNoteView: View {
                 deleteError = false
             }
         } message: {
-            Text(deleteError ? "Wrong password. Try again." : "Enter your master password to permanently delete this note.")
+            Text(deleteError
+                 ? "Wrong password. Try again."
+                 : "Enter your master password to permanently delete this note.")
         }
     }
 
@@ -43,7 +83,7 @@ struct StickyNoteView: View {
                 Circle()
                     .fill(colorForNote(color))
                     .frame(width: 10, height: 10)
-                    .onTapGesture { changeColor(color) }
+                    .onTapGesture { vm.color = color; vm.save() }
             }
             Spacer()
             Button {
@@ -62,62 +102,35 @@ struct StickyNoteView: View {
     // MARK: — Content
 
     private var contentArea: some View {
-        TextEditor(text: $note.content)
-            .font(.system(size: 13, weight: .regular))
+        TextEditor(text: $vm.content)
+            .font(.system(size: 13))
             .foregroundColor(.black.opacity(0.85))
             .background(Color.clear)
             .scrollContentBackground(.hidden)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .onChange(of: note.content) { _ in
-                saveNote()
-            }
+            .onChange(of: vm.content) { _ in vm.save() }
     }
 
-    // MARK: — Actions
-
-    private func saveNote() {
-        guard let key = AuthManager.shared.activeKey() else { return }
-        try? NoteStore.shared.save(note: note, key: key)
-    }
-
-    private func changeColor(_ color: NoteColor) {
-        note = Note(
-            id: note.id,
-            title: note.title,
-            content: note.content,
-            color: color,
-            position: note.position,
-            size: note.size
-        )
-        saveNote()
-    }
+    // MARK: — Delete
 
     private func confirmDelete() {
-        // Verify password by re-deriving and comparing hash — don't re-unlock the session
         guard let salt = try? KeychainManager.load(key: "td.passwordSalt"),
               let storedHash = try? KeychainManager.load(key: "td.passwordHash"),
               let candidateHash = try? KeyDerivation.hashForStorage(value: deletePassword, salt: salt) else {
-            deleteError = true
-            deletePassword = ""
-            return
+            deleteError = true; deletePassword = ""; return
         }
-
         guard KeyDerivation.constantTimeEqual(storedHash, candidateHash) else {
-            deleteError = true
-            deletePassword = ""
-            return
+            deleteError = true; deletePassword = ""; return
         }
-
-        deletePassword = ""
-        deleteError = false
-        try? NoteStore.shared.delete(note: note)
+        deletePassword = ""; deleteError = false
+        try? NoteStore.shared.delete(note: vm.asNote)
         window?.close()
     }
 
     // MARK: — Colors
 
-    private var noteColor: Color { colorForNote(note.color) }
+    private var noteColor: Color { colorForNote(vm.color) }
 
     private func colorForNote(_ color: NoteColor) -> Color {
         switch color {
