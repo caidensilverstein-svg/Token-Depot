@@ -266,13 +266,22 @@ class StickyNoteWindow: NSWindow {
 
     override func setFrameOrigin(_ point: NSPoint) {
         super.setFrameOrigin(point)
-        vm.position = CGPoint(x: frame.origin.x, y: frame.origin.y)
-        vm.save()
+        // Debounce — only save after dragging stops
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(savePosition), object: nil)
+        perform(#selector(savePosition), with: nil, afterDelay: 0.3)
     }
 
     override func setFrame(_ frameRect: NSRect, display flag: Bool) {
         super.setFrame(frameRect, display: flag)
         vm.size = CGSize(width: frameRect.width, height: frameRect.height)
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(savePosition), object: nil)
+        perform(#selector(savePosition), with: nil, afterDelay: 0.3)
+    }
+
+    @objc private func savePosition() {
+        vm.position = CGPoint(x: frame.origin.x, y: frame.origin.y)
+        vm.size = CGSize(width: frame.width, height: frame.height)
+        vm.saveImmediate()
     }
 
     // MARK: — Color helpers
