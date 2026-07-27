@@ -123,6 +123,19 @@ class StickyNoteWindow: NSWindow {
             x += 16
         }
 
+        // Paste button
+        let pasteBtn = NSButton(frame: NSRect(x: 0, y: 6, width: 18, height: 18))
+        pasteBtn.bezelStyle = .inline
+        pasteBtn.isBordered = false
+        pasteBtn.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Paste")?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .regular))
+        pasteBtn.image?.isTemplate = true
+        pasteBtn.contentTintColor = NSColor.black.withAlphaComponent(0.5)
+        pasteBtn.autoresizingMask = [.minXMargin]
+        pasteBtn.target = self
+        pasteBtn.action = #selector(pasteFromClipboard)
+        bar.addSubview(pasteBtn)
+
         // Close button
         let close = NSButton(frame: NSRect(x: 0, y: 6, width: 18, height: 18))
         close.bezelStyle = .inline
@@ -141,6 +154,13 @@ class StickyNoteWindow: NSWindow {
         close.frame.origin.x = 200 // will be corrected by autoresizing
 
         return bar
+    }
+
+    @objc private func pasteFromClipboard() {
+        let pb = NSPasteboard.general
+        if let str = pb.string(forType: .string) {
+            textView.insertText(str, replacementRange: textView.selectedRange())
+        }
     }
 
     @objc private func deleteNote() {
