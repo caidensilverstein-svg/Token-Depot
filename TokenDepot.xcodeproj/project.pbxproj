@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A100 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100 /* main.swift */; };
 		A101 /* TokenDepotApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F101 /* TokenDepotApp.swift */; };
 		A102 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F102 /* AppDelegate.swift */; };
 		A103 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F103 /* CryptoEngine.swift */; };
@@ -29,6 +30,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F100 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		F101 /* TokenDepotApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenDepotApp.swift; sourceTree = "<group>"; };
 		F102 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F103 /* CryptoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoEngine.swift; sourceTree = "<group>"; };
@@ -82,6 +84,7 @@
 		GAPP /* App */ = {
 			isa = PBXGroup;
 			children = (
+				F100 /* main.swift */,
 				F101 /* TokenDepotApp.swift */,
 				F102 /* AppDelegate.swift */,
 			);
@@ -217,6 +220,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A100 /* main.swift in Sources */,
 				A101 /* TokenDepotApp.swift in Sources */,
 				A102 /* AppDelegate.swift in Sources */,
 				A103 /* CryptoEngine.swift in Sources */,

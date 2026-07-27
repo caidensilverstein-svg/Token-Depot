@@ -7,12 +7,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var unlockWindow: NSWindow?
     private var setupWindow: NSWindow?
     private var authCancellable: AnyCancellable?
-    private var tamperCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Menubar init — synchronous, main thread, before anything else
         _ = MenuBarController.shared
-        NSApp.setActivationPolicy(.accessory)
 
+        // Screen lock observer
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(screenDidLock),
@@ -35,12 +35,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
+        // Watch auth state
         authCancellable = AuthManager.shared.$isUnlocked
             .receive(on: DispatchQueue.main)
             .sink { [weak self] unlocked in
                 if unlocked { self?.onUnlocked() }
             }
 
+        // Boot flow
         if !AuthManager.shared.isSetup {
             showSetupFlow()
         } else {
@@ -91,11 +93,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             try? NoteStore.shared.loadAll(key: key)
             await MainActor.run {
                 if NoteStore.shared.notes.isEmpty {
-                    // Use staggered position for first note
-                    let pos = NoteStore.shared.nextNotePosition()
-                    var note = Note()
-                    note = Note(id: note.id, title: note.title, content: note.content,
-                                color: note.color, position: pos, size: note.size)
+                    let pos  = NoteStore.shared.nextNotePosition()
+                    let note = Note(position: pos)
                     try? NoteStore.shared.save(note: note, key: key)
                 }
                 MenuBarController.shared.openNotes(NoteStore.shared.notes)
@@ -146,6 +145,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupWindow = window
     }
 }
+
+// MARK: — NSWindowDelegate
 
 extension AppDelegate: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {

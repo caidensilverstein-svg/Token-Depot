@@ -11,7 +11,8 @@ final class MenuBarController: NSObject {
 
     private override init() {
         super.init()
-        DispatchQueue.main.async { self.setupMenuBar() }
+        // Called from applicationDidFinishLaunching — guaranteed main thread
+        setupMenuBar()
     }
 
     // MARK: — Menubar Setup
@@ -29,10 +30,6 @@ final class MenuBarController: NSObject {
             }
         }
 
-        buildMenu()
-    }
-
-    private func buildMenu() {
         let menu = NSMenu()
 
         let newItem = NSMenuItem(title: "New Note", action: #selector(newNote), keyEquivalent: "n")
@@ -94,7 +91,6 @@ final class MenuBarController: NSObject {
 
     @objc private func newNote() {
         guard let key = AuthManager.shared.activeKey() else { return }
-        // Stagger new note position so they don't all pile up
         let pos  = NoteStore.shared.nextNotePosition()
         let note = Note(position: pos)
         try? NoteStore.shared.save(note: note, key: key)
