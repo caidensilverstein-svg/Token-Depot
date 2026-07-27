@@ -25,7 +25,6 @@ final class NoteViewModel: ObservableObject {
         self.size      = note.size
         self.createdAt = note.createdAt
 
-        // Debounce saves — 500ms after last keystroke, not on every character
         saveCancellable = $content
             .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
             .dropFirst()
@@ -42,9 +41,76 @@ final class NoteViewModel: ObservableObject {
     }
 
     func saveImmediate() {
-        // Called on window close / color change — bypass debounce
         saveCancellable?.cancel()
         save()
+    }
+}
+
+// MARK: — SecureTextEditor (NSViewRepresentable — AX tree fully opted out)
+
+/// Replaces SwiftUI TextEditor. NSTextView with accessibility disabled so
+/// osascript / AXIsProcessTrusted scrapers cannot read note content.
+struct SecureTextEditor: NSViewRepresentable {
+
+    @Binding var text: String
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSTextView.scrollableTextView()
+
+        guard let textView = scrollView.documentView as? NSTextView else {
+            return scrollView
+        }
+
+        // Appearance
+        textView.font = NSFont.systemFont(ofSize: 13)
+        textView.textColor = NSColor.black.withAlphaComponent(0.85)
+        textView.backgroundColor = .clear
+        textView.drawsBackground = false
+        textView.isRichText = false
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.textContainerInset = NSSize(width: 10, height: 8)
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+
+        // Scroll view appearance
+        scrollView.backgroundColor = .clear
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = false
+        scrollView.hasHorizontalScroller = false
+
+        // SECURITY: opt entire view tree out of accessibility
+        // Prevents osascript / AX API from reading note content
+        textView.setAccessibilityElement(false)
+        textView.setAccessibilityRole(.unknown)
+        textView.setAccessibilityLabel("")
+        scrollView.setAccessibilityElement(false)
+        scrollView.setAccessibilityRole(.unknown)
+
+        textView.delegate = context.coordinator
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = scrollView.documentView as? NSTextView else { return }
+        // Only update if changed to avoid cursor jumping
+        if textView.string != text {
+            textView.string = text
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: SecureTextEditor
+        init(_ parent: SecureTextEditor) { self.parent = parent }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            parent.text = textView.string
+        }
     }
 }
 
@@ -58,7 +124,6 @@ struct StickyNoteView: View {
     @State private var showDeleteConfirm = false
     @State private var deletePassword = ""
     @State private var deleteError = false
-    @FocusState private var editorFocused: Bool
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -69,11 +134,10 @@ struct StickyNoteView: View {
             VStack(spacing: 0) {
                 titleBar
                 Divider().opacity(0.3)
-                contentArea
+                SecureTextEditor(text: $vm.content)
             }
         }
         .privacySensitive()
-        .onAppear { editorFocused = true }
         .alert("Delete Note", isPresented: $showDeleteConfirm) {
             SecureField("Enter master password", text: $deletePassword)
             Button("Delete", role: .destructive) { confirmDelete() }
@@ -112,22 +176,6 @@ struct StickyNoteView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .contentShape(Rectangle())
-        .onTapGesture { editorFocused = true }
-    }
-
-    // MARK: — Content
-
-    private var contentArea: some View {
-        TextEditor(text: $vm.content)
-            .font(.system(size: 13))
-            .foregroundColor(.black.opacity(0.85))
-            .background(Color.clear)
-            .scrollContentBackground(.hidden)
-            .focused($editorFocused)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            // Fixed deprecation: use two-parameter onChange
-            .onChange(of: vm.content) { _, _ in }  // debounce in VM handles saves
     }
 
     // MARK: — Delete
