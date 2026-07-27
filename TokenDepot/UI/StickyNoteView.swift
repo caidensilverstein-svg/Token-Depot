@@ -46,6 +46,30 @@ final class NoteViewModel: ObservableObject {
     }
 }
 
+// MARK: — SecureNSTextView (NSTextView subclass with paste override)
+
+final class SecureNSTextView: NSTextView {
+
+    // Override paste to force plain text — strips rich text/formatting
+    override func paste(_ sender: Any?) {
+        let pb = NSPasteboard.general
+        if let str = pb.string(forType: .string) {
+            insertText(str, replacementRange: selectedRange())
+        } else if let str = pb.string(forType: .URL) {
+            insertText(str, replacementRange: selectedRange())
+        }
+    }
+
+    // Also handle pasteAsPlainText
+    override func pasteAsPlainText(_ sender: Any?) {
+        paste(sender)
+    }
+
+    // Block AX entirely at the NSTextView level
+    override func isAccessibilityElement() -> Bool { return false }
+    override func accessibilityRole() -> NSAccessibility.Role? { return .unknown }
+}
+
 // MARK: — SecureTextEditor (NSViewRepresentable — AX tree fully opted out)
 
 /// Replaces SwiftUI TextEditor. NSTextView with accessibility disabled so
@@ -55,11 +79,21 @@ struct SecureTextEditor: NSViewRepresentable {
     @Binding var text: String
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSTextView.scrollableTextView()
+        let scrollView = NSScrollView()
+        scrollView.hasVerticalScroller = false
+        scrollView.hasHorizontalScroller = false
 
-        guard let textView = scrollView.documentView as? NSTextView else {
-            return scrollView
-        }
+        let contentSize = scrollView.contentSize
+        let textView = SecureNSTextView(frame: NSRect(origin: .zero, size: contentSize))
+        textView.minSize = NSSize(width: 0, height: contentSize.height)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.containerSize = NSSize(width: contentSize.width, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
+
+        scrollView.documentView = textView
 
         // Appearance
         textView.font = NSFont.systemFont(ofSize: 13)
