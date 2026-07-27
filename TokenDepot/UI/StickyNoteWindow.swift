@@ -156,9 +156,6 @@ class StickyNoteWindow: NSWindow {
         ])
 
         bar.autoresizingMask = [.width]
-        // Position close button on the right — done after frame is set via autoresizing
-        close.frame.origin.x = 200 // will be corrected by autoresizing
-
         return bar
     }
 
