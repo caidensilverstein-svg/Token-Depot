@@ -125,27 +125,24 @@ class StickyNoteWindow: NSWindow {
             x += 16
         }
 
-        // Paste button — right side
-        let pasteBtn = NSButton(frame: NSRect(x: barWidth - 44, y: 6, width: 18, height: 18))
+        // Paste button at x=barWidth-56 (clipboard icon)
+        let pasteBtn = NSButton(frame: NSRect(x: barWidth - 56, y: 5, width: 20, height: 20))
         pasteBtn.bezelStyle = .inline
         pasteBtn.isBordered = false
-        pasteBtn.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Paste")?
-            .withSymbolConfiguration(.init(pointSize: 10, weight: .regular))
-        pasteBtn.image?.isTemplate = true
-        pasteBtn.contentTintColor = NSColor.black.withAlphaComponent(0.5)
+        pasteBtn.title = "📋"
+        pasteBtn.font = .systemFont(ofSize: 13)
         pasteBtn.autoresizingMask = [.minXMargin]
         pasteBtn.target = self
         pasteBtn.action = #selector(pasteFromClipboard)
         bar.addSubview(pasteBtn)
 
-        // Delete button — far right
-        let deleteBtn = NSButton(frame: NSRect(x: barWidth - 22, y: 6, width: 18, height: 18))
+        // Delete button at x=barWidth-28 (x mark)
+        let deleteBtn = NSButton(frame: NSRect(x: barWidth - 28, y: 5, width: 20, height: 20))
         deleteBtn.bezelStyle = .inline
         deleteBtn.isBordered = false
-        deleteBtn.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Delete")?
-            .withSymbolConfiguration(.init(pointSize: 10, weight: .bold))
-        deleteBtn.image?.isTemplate = true
-        deleteBtn.contentTintColor = NSColor.black.withAlphaComponent(0.5)
+        deleteBtn.title = "✕"
+        deleteBtn.font = .systemFont(ofSize: 11)
+        deleteBtn.contentTintColor = NSColor.black.withAlphaComponent(0.6)
         deleteBtn.autoresizingMask = [.minXMargin]
         deleteBtn.target = self
         deleteBtn.action = #selector(deleteNote)
