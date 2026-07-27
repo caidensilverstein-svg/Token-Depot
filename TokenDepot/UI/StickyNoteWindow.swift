@@ -1,30 +1,30 @@
 import AppKit
-import SwiftUI
+import Combine
 
-/// A floating, borderless sticky note window.
+/// Pure AppKit sticky note window — no SwiftUI hosting view in the responder chain.
+/// This ensures NSTextView gets first responder correctly and paste works.
 class StickyNoteWindow: NSWindow {
 
     let noteId: UUID
     let vm: NoteViewModel
+
+    private var textView: SecureNSTextView!
+    private var contentObserver: AnyCancellable?
 
     init(note: Note) {
         self.noteId = note.id
         self.vm = NoteViewModel(note: note)
 
         super.init(
-            contentRect: NSRect(
-                x: note.position.x,
-                y: note.position.y,
-                width: note.size.width,
-                height: note.size.height
-            ),
+            contentRect: NSRect(x: note.position.x, y: note.position.y,
+                                width: note.size.width, height: note.size.height),
             styleMask: [.borderless, .resizable],
             backing: .buffered,
             defer: false
         )
 
         configure()
-        setContent()
+        buildView()
     }
 
     private func configure() {
@@ -36,51 +36,160 @@ class StickyNoteWindow: NSWindow {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         minSize = NSSize(width: 160, height: 120)
         sharingType = .none
-        acceptsMouseMovedEvents = true
     }
 
-    private func setContent() {
-        let view = StickyNoteView(vm: vm, onClose: { [weak self] in
-            self?.close()
-        })
-        let hosting = NSHostingView(rootView: view)
-        hosting.wantsLayer = true
-        hosting.setAccessibilityElement(false)
-        hosting.setAccessibilityRole(.unknown)
-        contentView = hosting
+    private func buildView() {
+        // Root view — the note background
+        let root = NoteBackgroundView(color: noteNSColor(vm.color))
+        root.autoresizingMask = [.width, .height]
+        root.frame = NSRect(origin: .zero, size: frame.size)
+
+        // Title bar
+        let titleBar = buildTitleBar()
+        titleBar.frame = NSRect(x: 0, y: root.frame.height - 30, width: root.frame.width, height: 30)
+        titleBar.autoresizingMask = [.width, .minYMargin]
+        root.addSubview(titleBar)
+
+        // Divider
+        let divider = NSBox()
+        divider.boxType = .separator
+        divider.frame = NSRect(x: 0, y: root.frame.height - 31, width: root.frame.width, height: 1)
+        divider.autoresizingMask = [.width, .minYMargin]
+        root.addSubview(divider)
+
+        // Text view
+        let scrollView = SecureNSTextView.scrollableTextView()
+        scrollView.frame = NSRect(x: 0, y: 0, width: root.frame.width, height: root.frame.height - 31)
+        scrollView.autoresizingMask = [.width, .height]
+        scrollView.backgroundColor = .clear
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = false
+
+        textView = scrollView.documentView as? SecureNSTextView
+        textView.font = .systemFont(ofSize: 13)
+        textView.textColor = NSColor.black.withAlphaComponent(0.85)
+        textView.backgroundColor = .clear
+        textView.drawsBackground = false
+        textView.isRichText = false
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.allowsUndo = true
+        textView.textContainerInset = NSSize(width: 10, height: 8)
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.string = vm.content
+        textView.delegate = self
+
+        textView.setAccessibilityElement(false)
+        textView.setAccessibilityRole(.unknown)
+        scrollView.setAccessibilityElement(false)
+
+        root.addSubview(scrollView)
+        contentView = root
+
+        // Sync vm.content changes back to text view (e.g. from load)
+        contentObserver = vm.$content
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] newContent in
+                guard let self = self else { return }
+                if self.textView.string != newContent {
+                    self.textView.string = newContent
+                }
+            }
     }
+
+    private func buildTitleBar() -> NSView {
+        let bar = NSView()
+        bar.wantsLayer = true
+
+        // Color dots
+        var x: CGFloat = 10
+        for color in NoteColor.allCases {
+            let dot = ColorDotButton(noteColor: color) { [weak self] selected in
+                self?.vm.color = selected
+                self?.vm.saveImmediate()
+                (self?.contentView as? NoteBackgroundView)?.setColor(self?.noteNSColor(selected) ?? .yellow)
+            }
+            dot.frame = NSRect(x: x, y: 10, width: 10, height: 10)
+            bar.addSubview(dot)
+            x += 16
+        }
+
+        // Close button
+        let close = NSButton(frame: NSRect(x: 0, y: 6, width: 18, height: 18))
+        close.bezelStyle = .inline
+        close.isBordered = false
+        close.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Delete")?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .bold))
+        close.image?.isTemplate = true
+        close.contentTintColor = NSColor.black.withAlphaComponent(0.5)
+        close.autoresizingMask = [.minXMargin]
+        close.target = self
+        close.action = #selector(deleteNote)
+        bar.addSubview(close)
+
+        bar.autoresizingMask = [.width]
+        // Position close button on the right — done after frame is set via autoresizing
+        close.frame.origin.x = 200 // will be corrected by autoresizing
+
+        return bar
+    }
+
+    @objc private func deleteNote() {
+        // Show password prompt
+        let alert = NSAlert()
+        alert.messageText = "Delete Note"
+        alert.informativeText = "Enter your master password to permanently delete this note."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+
+        let input = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        alert.accessoryView = input
+        alert.window.initialFirstResponder = input
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+
+        let password = input.stringValue
+        guard let salt      = try? KeychainManager.load(key: "td.passwordSalt"),
+              let stored    = try? KeychainManager.load(key: "td.passwordHash"),
+              let candidate = try? KeyDerivation.hashForStorage(value: password, salt: salt),
+              KeyDerivation.constantTimeEqual(stored, candidate)
+        else {
+            let err = NSAlert()
+            err.messageText = "Wrong password"
+            err.runModal()
+            return
+        }
+
+        vm.saveImmediate()
+        try? NoteStore.shared.delete(note: vm.asNote)
+        close()
+    }
+
+    // MARK: — Key window
 
     override var canBecomeKey: Bool  { true }
     override var canBecomeMain: Bool { true }
 
+    override func makeKeyAndOrderFront(_ sender: Any?) {
+        super.makeKeyAndOrderFront(sender)
+        // Give text view first responder after window is key
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.makeFirstResponder(self.textView)
+        }
+    }
+
     override func mouseDown(with event: NSEvent) {
-        // Activate app and make key BEFORE passing event so text view gets focus
         NSApp.activate(ignoringOtherApps: true)
         makeKeyAndOrderFront(nil)
-
         super.mouseDown(with: event)
-
-        // Force first responder to the text view after click
-        DispatchQueue.main.async { [weak self] in
-            self?.makeFirstResponderToTextView()
-        }
     }
 
-    func makeFirstResponderToTextView() {
-        // Walk the view hierarchy to find SecureNSTextView and make it first responder
-        func findTextView(in view: NSView) -> SecureNSTextView? {
-            if let tv = view as? SecureNSTextView { return tv }
-            for sub in view.subviews {
-                if let found = findTextView(in: sub) { return found }
-            }
-            return nil
-        }
-        if let tv = contentView.flatMap({ findTextView(in: $0) }) {
-            makeFirstResponder(tv)
-        }
-    }
-
-    // MARK: — Save position/size on move/resize
+    // MARK: — Position/size
 
     override func setFrameOrigin(_ point: NSPoint) {
         super.setFrameOrigin(point)
@@ -92,4 +201,88 @@ class StickyNoteWindow: NSWindow {
         super.setFrame(frameRect, display: flag)
         vm.size = CGSize(width: frameRect.width, height: frameRect.height)
     }
+
+    // MARK: — Color helpers
+
+    private func noteNSColor(_ color: NoteColor) -> NSColor {
+        switch color {
+        case .yellow: return NSColor(red: 1.0,  green: 0.96, blue: 0.6,  alpha: 1)
+        case .blue:   return NSColor(red: 0.75, green: 0.88, blue: 1.0,  alpha: 1)
+        case .green:  return NSColor(red: 0.8,  green: 0.97, blue: 0.75, alpha: 1)
+        case .pink:   return NSColor(red: 1.0,  green: 0.82, blue: 0.88, alpha: 1)
+        case .gray:   return NSColor(red: 0.9,  green: 0.9,  blue: 0.92, alpha: 1)
+        }
+    }
+}
+
+// MARK: — NSTextViewDelegate
+
+extension StickyNoteWindow: NSTextViewDelegate {
+    func textDidChange(_ notification: Notification) {
+        guard let tv = notification.object as? NSTextView else { return }
+        vm.content = tv.string
+    }
+}
+
+// MARK: — Helper views
+
+class NoteBackgroundView: NSView {
+    private var bgColor: NSColor
+
+    init(color: NSColor) {
+        self.bgColor = color
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 8
+        layer?.masksToBounds = true
+        layer?.shadowOpacity = 0.25
+        layer?.shadowRadius = 4
+        layer?.shadowOffset = CGSize(width: 0, height: -2)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    func setColor(_ color: NSColor) {
+        bgColor = color
+        needsDisplay = true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        bgColor.setFill()
+        bounds.fill()
+    }
+}
+
+class ColorDotButton: NSButton {
+    private let noteColor: NoteColor
+    private let onSelect: (NoteColor) -> Void
+
+    init(noteColor: NoteColor, onSelect: @escaping (NoteColor) -> Void) {
+        self.noteColor = noteColor
+        self.onSelect = onSelect
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 5
+        layer?.masksToBounds = true
+        isBordered = false
+        bezelStyle = .inline
+        title = ""
+        target = self
+        action = #selector(tapped)
+        setColor()
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    private func setColor() {
+        switch noteColor {
+        case .yellow: layer?.backgroundColor = NSColor(red: 1.0,  green: 0.96, blue: 0.6,  alpha: 1).cgColor
+        case .blue:   layer?.backgroundColor = NSColor(red: 0.75, green: 0.88, blue: 1.0,  alpha: 1).cgColor
+        case .green:  layer?.backgroundColor = NSColor(red: 0.8,  green: 0.97, blue: 0.75, alpha: 1).cgColor
+        case .pink:   layer?.backgroundColor = NSColor(red: 1.0,  green: 0.82, blue: 0.88, alpha: 1).cgColor
+        case .gray:   layer?.backgroundColor = NSColor(red: 0.9,  green: 0.9,  blue: 0.92, alpha: 1).cgColor
+        }
+    }
+
+    @objc private func tapped() { onSelect(noteColor) }
 }
