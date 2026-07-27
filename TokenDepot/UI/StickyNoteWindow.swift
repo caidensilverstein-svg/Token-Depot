@@ -109,6 +109,7 @@ class StickyNoteWindow: NSWindow {
     private func buildTitleBar() -> NSView {
         let bar = NSView()
         bar.wantsLayer = true
+        bar.translatesAutoresizingMaskIntoConstraints = false
 
         // Color dots
         var x: CGFloat = 10
@@ -124,30 +125,35 @@ class StickyNoteWindow: NSWindow {
         }
 
         // Paste button
-        let pasteBtn = NSButton(frame: NSRect(x: 0, y: 6, width: 18, height: 18))
-        pasteBtn.bezelStyle = .inline
-        pasteBtn.isBordered = false
-        pasteBtn.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Paste")?
-            .withSymbolConfiguration(.init(pointSize: 9, weight: .regular))
-        pasteBtn.image?.isTemplate = true
-        pasteBtn.contentTintColor = NSColor.black.withAlphaComponent(0.5)
-        pasteBtn.autoresizingMask = [.minXMargin]
-        pasteBtn.target = self
-        pasteBtn.action = #selector(pasteFromClipboard)
-        bar.addSubview(pasteBtn)
+        // Right-side buttons — use a stack anchored to the right edge
+        let btnStack = NSStackView()
+        btnStack.orientation = .horizontal
+        btnStack.spacing = 4
+        btnStack.translatesAutoresizingMaskIntoConstraints = false
 
-        // Close button
-        let close = NSButton(frame: NSRect(x: 0, y: 6, width: 18, height: 18))
-        close.bezelStyle = .inline
-        close.isBordered = false
-        close.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Delete")?
-            .withSymbolConfiguration(.init(pointSize: 9, weight: .bold))
-        close.image?.isTemplate = true
-        close.contentTintColor = NSColor.black.withAlphaComponent(0.5)
-        close.autoresizingMask = [.minXMargin]
-        close.target = self
-        close.action = #selector(deleteNote)
-        bar.addSubview(close)
+        func makeBtn(_ symbol: String, desc: String, action: Selector) -> NSButton {
+            let b = NSButton()
+            b.bezelStyle = .inline
+            b.isBordered = false
+            b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: desc)?
+                .withSymbolConfiguration(.init(pointSize: 10, weight: .regular))
+            b.image?.isTemplate = true
+            b.contentTintColor = NSColor.black.withAlphaComponent(0.5)
+            b.target = self
+            b.action = action
+            b.widthAnchor.constraint(equalToConstant: 18).isActive = true
+            b.heightAnchor.constraint(equalToConstant: 18).isActive = true
+            return b
+        }
+
+        btnStack.addArrangedSubview(makeBtn("doc.on.clipboard", desc: "Paste",  action: #selector(pasteFromClipboard)))
+        btnStack.addArrangedSubview(makeBtn("xmark",            desc: "Delete", action: #selector(deleteNote)))
+
+        bar.addSubview(btnStack)
+        NSLayoutConstraint.activate([
+            btnStack.trailingAnchor.constraint(equalTo: bar.trailingAnchor, constant: -8),
+            btnStack.centerYAnchor.constraint(equalTo: bar.centerYAnchor)
+        ])
 
         bar.autoresizingMask = [.width]
         // Position close button on the right — done after frame is set via autoresizing
