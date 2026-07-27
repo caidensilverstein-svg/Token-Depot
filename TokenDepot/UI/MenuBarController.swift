@@ -122,6 +122,7 @@ final class MenuBarController: NSObject {
     @objc private func quitApp() {
         NoteStore.shared.clearMemory()
         AuthManager.shared.lock()
+        (NSApp.delegate as? AppDelegate)?.isExplicitQuit = true
         NSApp.terminate(nil)
     }
 }

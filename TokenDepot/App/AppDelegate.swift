@@ -4,6 +4,8 @@ import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
 
+    var isExplicitQuit = false
+
     private var unlockWindow: NSWindow?
     private var setupWindow: NSWindow?
     private var authCancellable: AnyCancellable?
@@ -102,9 +104,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: — Quit
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        NoteStore.shared.clearMemory()
-        AuthManager.shared.lock()
-        return .terminateNow
+        // Only terminate if explicitly requested (quit menu), not just because all windows closed
+        if isExplicitQuit {
+            NoteStore.shared.clearMemory()
+            AuthManager.shared.lock()
+            return .terminateNow
+        }
+        return .terminateCancel
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false  // Never quit just because all windows closed
     }
 
     // MARK: — Screen Lock
@@ -204,6 +214,7 @@ extension AppDelegate: NSWindowDelegate {
         guard let window = notification.object as? NSWindow else { return }
         if window === setupWindow {
             setupWindow = nil
+            isExplicitQuit = true
             NSApp.terminate(nil)
         }
         if window === unlockWindow {
