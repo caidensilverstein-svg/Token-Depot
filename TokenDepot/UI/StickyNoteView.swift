@@ -69,9 +69,14 @@ struct SecureTextEditor: NSViewRepresentable {
         textView.isRichText = false
         textView.isEditable = true
         textView.isSelectable = true
+        textView.allowsUndo = true
         textView.textContainerInset = NSSize(width: 10, height: 8)
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        // Explicitly allow paste operations
+        textView.importsGraphics = false
+        textView.usesFindPanel = false
 
         // Scroll view appearance
         scrollView.backgroundColor = .clear
@@ -110,6 +115,15 @@ struct SecureTextEditor: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
+        }
+
+        // Force plain text paste — strips formatting, always works
+        @objc func paste(_ sender: Any?) {
+            guard let textView = sender as? NSTextView else { return }
+            let pb = NSPasteboard.general
+            if let str = pb.string(forType: .string) {
+                textView.insertText(str, replacementRange: textView.selectedRange())
+            }
         }
     }
 }
