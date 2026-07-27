@@ -7,12 +7,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var unlockWindow: NSWindow?
     private var setupWindow: NSWindow?
     private var authCancellable: AnyCancellable?
+    private var localMonitor: Any?
+    private var globalMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Menubar init — synchronous, main thread, before anything else
         _ = MenuBarController.shared
 
-        // Screen lock observer
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(screenDidLock),
@@ -27,7 +27,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        // Tamper detection alert
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleTamperedNotes(_:)),
@@ -35,19 +34,68 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        // Watch auth state
         authCancellable = AuthManager.shared.$isUnlocked
             .receive(on: DispatchQueue.main)
             .sink { [weak self] unlocked in
                 if unlocked { self?.onUnlocked() }
             }
 
-        // Boot flow
+        setupGlobalHotkeys()
+
         if !AuthManager.shared.isSetup {
             showSetupFlow()
         } else {
             showUnlockScreen()
         }
+    }
+
+    // MARK: — Global Hotkeys
+
+    private func setupGlobalHotkeys() {
+        // ⌘⌥N — new note (works system-wide)
+        // ⌘⌥Q — quit
+        // ⌘⌥L — lock
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.modifierFlags.contains([.command, .option]) else { return }
+            switch event.charactersIgnoringModifiers {
+            case "n": self?.newNote()
+            case "q": self?.quit()
+            case "l": self?.lock()
+            default: break
+            }
+        }
+
+        // Also catch when app IS focused
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.modifierFlags.contains([.command, .option]) else { return event }
+            switch event.charactersIgnoringModifiers {
+            case "n": self?.newNote(); return nil
+            case "q": self?.quit(); return nil
+            case "l": self?.lock(); return nil
+            default: return event
+            }
+        }
+    }
+
+    @objc private func newNote() {
+        guard AuthManager.shared.isUnlocked else { return }
+        guard let key = AuthManager.shared.activeKey() else { return }
+        let note = Note(position: NoteStore.shared.nextNotePosition())
+        try? NoteStore.shared.save(note: note, key: key)
+        MenuBarController.shared.openNote(note)
+    }
+
+    @objc private func quit() {
+        NoteStore.shared.clearMemory()
+        AuthManager.shared.lock()
+        NSApp.terminate(nil)
+    }
+
+    @objc private func lock() {
+        MenuBarController.shared.closeAllWindows()
+        NoteStore.shared.clearMemory()
+        AuthManager.shared.lock()
+        showUnlockScreen()
     }
 
     // MARK: — Quit
@@ -73,7 +121,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let ids = notification.object as? [String], !ids.isEmpty else { return }
         let alert = NSAlert()
         alert.messageText = "Tampered Notes Detected"
-        alert.informativeText = "\(ids.count) note file(s) failed authentication and were skipped. This may indicate tampering or file corruption.\n\nAffected IDs:\n\(ids.joined(separator: "\n"))"
+        alert.informativeText = "\(ids.count) note file(s) failed authentication and were skipped.\n\nAffected IDs:\n\(ids.joined(separator: "\n"))"
         alert.alertStyle = .critical
         alert.addButton(withTitle: "OK")
         alert.runModal()
@@ -93,8 +141,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             try? NoteStore.shared.loadAll(key: key)
             await MainActor.run {
                 if NoteStore.shared.notes.isEmpty {
-                    let pos  = NoteStore.shared.nextNotePosition()
-                    let note = Note(position: pos)
+                    let note = Note(position: NoteStore.shared.nextNotePosition())
                     try? NoteStore.shared.save(note: note, key: key)
                 }
                 MenuBarController.shared.openNotes(NoteStore.shared.notes)
@@ -144,9 +191,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         setupWindow = window
     }
-}
 
-// MARK: — NSWindowDelegate
+    deinit {
+        if let m = globalMonitor { NSEvent.removeMonitor(m) }
+        if let m = localMonitor  { NSEvent.removeMonitor(m) }
+    }
+}
 
 extension AppDelegate: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
