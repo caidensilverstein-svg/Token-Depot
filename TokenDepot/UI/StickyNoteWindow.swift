@@ -35,31 +35,38 @@ class StickyNoteWindow: NSWindow {
         isMovableByWindowBackground = true
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         minSize = NSSize(width: 160, height: 120)
+
+        // Block screenshot APIs
         sharingType = .none
-        // Accept mouse/keyboard events even when app is not active
+
         acceptsMouseMovedEvents = true
     }
 
     private func setContent() {
-        // Pass close callback instead of weak self ref — avoids EXC_BAD_ACCESS
         let view = StickyNoteView(vm: vm, onClose: { [weak self] in
             self?.close()
         })
         let hosting = NSHostingView(rootView: view)
         hosting.wantsLayer = true
+
+        // Gemini concern #5: opt out of accessibility tree
+        // Prevents AXIsProcessTrusted() scraping of decrypted note content
+        hosting.setAccessibilityElement(false)
+        hosting.setAccessibilityRole(.unknown)
+
         contentView = hosting
     }
 
-    // MARK: — Make window key on click so TextEditor gets focus
+    // MARK: — Key window (required for TextEditor focus in borderless window)
+
+    override var canBecomeKey: Bool  { true }
+    override var canBecomeMain: Bool { true }
 
     override func mouseDown(with event: NSEvent) {
         makeKey()
         NSApp.activate(ignoringOtherApps: true)
         super.mouseDown(with: event)
     }
-
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { true }
 
     // MARK: — Save position/size on move/resize
 

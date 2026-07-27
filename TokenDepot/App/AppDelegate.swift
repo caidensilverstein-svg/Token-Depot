@@ -6,14 +6,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var unlockWindow: NSWindow?
     private var setupWindow: NSWindow?
-    private var menuBar: MenuBarController?
     private var authCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Init menubar FIRST before activation policy change
+        _ = MenuBarController.shared
+
+        // Accessory = no dock icon, menubar only
         NSApp.setActivationPolicy(.accessory)
 
-        menuBar = MenuBarController.shared
-
+        // Screen lock observer
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(screenDidLock),
@@ -28,17 +30,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
+        // Watch auth state via Combine
         authCancellable = AuthManager.shared.$isUnlocked
             .receive(on: DispatchQueue.main)
             .sink { [weak self] unlocked in
                 if unlocked { self?.onUnlocked() }
             }
 
+        // Boot
         if !AuthManager.shared.isSetup {
             showSetupFlow()
         } else {
             showUnlockScreen()
         }
+    }
+
+    // MARK: — ⌘Q to quit
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        return .terminateNow
     }
 
     // MARK: — Screen Lock
@@ -59,14 +69,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupWindow = nil
 
         guard let key = AuthManager.shared.activeKey() else { return }
-        try? NoteStore.shared.loadAll(key: key)
 
-        if NoteStore.shared.notes.isEmpty {
-            let note = Note()
-            try? NoteStore.shared.save(note: note, key: key)
+        // Load notes on background thread — KDF already done, this is just disk I/O
+        Task.detached(priority: .userInitiated) {
+            try? NoteStore.shared.loadAll(key: key)
+            await MainActor.run {
+                if NoteStore.shared.notes.isEmpty {
+                    let note = Note()
+                    try? NoteStore.shared.save(note: note, key: key)
+                }
+                MenuBarController.shared.openNotes(NoteStore.shared.notes)
+            }
         }
-
-        MenuBarController.shared.openNotes(NoteStore.shared.notes)
     }
 
     // MARK: — Windows
@@ -89,6 +103,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentView = NSHostingView(rootView: UnlockView())
         window.isReleasedWhenClosed = false
         window.level = .floating
+        window.delegate = self
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         unlockWindow = window
@@ -97,7 +112,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showSetupFlow() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 580),
-            // Add .closable so the red X works
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -121,7 +135,6 @@ extension AppDelegate: NSWindowDelegate {
         guard let window = notification.object as? NSWindow else { return }
         if window === setupWindow {
             setupWindow = nil
-            // If they close setup without finishing, quit — app is unusable without credentials
             NSApp.terminate(nil)
         }
         if window === unlockWindow {

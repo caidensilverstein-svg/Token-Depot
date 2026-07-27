@@ -5,7 +5,7 @@ enum AuthError: Error {
     case wrongPassword
     case rateLimited(secondsRemaining: Int)
     case notSetup
-    case panicTriggered       // panic password entered — wipe initiated
+    case panicTriggered
     case setupFailed
 }
 
@@ -20,31 +20,26 @@ final class AuthManager: ObservableObject {
     private let rateLimiter = RateLimiter()
     private var sessionKey: SymmetricKey?
 
-    // Keychain keys
-    private let passwordHashKey   = "td.passwordHash"
-    private let passwordSaltKey   = "td.passwordSalt"
-    private let panicHashKey      = "td.panicHash"
-    private let panicSaltKey      = "td.panicSalt"
+    private let passwordHashKey = "td.passwordHash"
+    private let passwordSaltKey = "td.passwordSalt"
+    private let panicHashKey    = "td.panicHash"
+    private let panicSaltKey    = "td.panicSalt"
 
     private init() {
         isSetup = hasStoredCredentials()
     }
 
-    // MARK: — Setup (first launch)
+    // MARK: — Setup
 
     func setup(password: String, panicPassword: String) throws {
         guard !password.isEmpty, !panicPassword.isEmpty,
-              password != panicPassword else {
-            throw AuthError.setupFailed
-        }
+              password != panicPassword else { throw AuthError.setupFailed }
 
-        // Derive and store password hash
         let passSalt = KeyDerivation.generateSalt()
         let passHash = try KeyDerivation.hashForStorage(value: password, salt: passSalt)
         try KeychainManager.store(key: passwordSaltKey, data: passSalt)
         try KeychainManager.store(key: passwordHashKey, data: passHash)
 
-        // Derive and store panic hash
         let panicSalt = KeyDerivation.generateSalt()
         let panicHash = try KeyDerivation.hashForStorage(value: panicPassword, salt: panicSalt)
         try KeychainManager.store(key: panicSaltKey, data: panicSalt)
@@ -53,55 +48,58 @@ final class AuthManager: ObservableObject {
         isSetup = true
     }
 
-    // MARK: — Unlock
+    // MARK: — Unlock (async — KDF runs off main thread)
 
-    /// Attempt to unlock with a password. Returns false on wrong password.
-    /// Throws .rateLimited if too many failed attempts.
-    /// Throws .panicTriggered if the panic password is entered.
-    func unlock(password: String) throws {
+    /// Full async unlock — KDF runs on background thread, never blocks UI.
+    func unlock(password: String) async throws {
         guard isSetup else { throw AuthError.notSetup }
 
-        // Rate limit check
         guard rateLimiter.canAttempt() else {
             throw AuthError.rateLimited(secondsRemaining: rateLimiter.remainingLockSeconds)
         }
 
-        // Check panic password first — if match, wipe everything
-        if try isPanicPassword(password) {
+        // Run expensive KDF operations off main thread
+        let (isPanic, isCorrect, derivedKey) = try await Task.detached(priority: .userInitiated) {
+            let isPanic   = try self.isPanicPassword(password)
+            if isPanic { return (true, false, SymmetricKey?.none) }
+
+            let isCorrect = try self.isCorrectPassword(password)
+            if !isCorrect { return (false, false, SymmetricKey?.none) }
+
+            let salt = try KeychainManager.load(key: self.passwordSaltKey)
+            let key  = try KeyDerivation.deriveSymmetricKey(password: password, salt: salt)
+            return (false, true, SymmetricKey?.some(key))
+        }.value
+
+        // Back on caller (main) thread for state updates
+        if isPanic {
             triggerPanicWipe()
             throw AuthError.panicTriggered
         }
 
-        // Verify real password
-        guard try isCorrectPassword(password) else {
+        guard isCorrect, let key = derivedKey else {
             rateLimiter.recordFailure()
             throw AuthError.wrongPassword
         }
 
-        // Derive session key and store in memory only
-        let salt = try KeychainManager.load(key: passwordSaltKey)
-        sessionKey = try KeyDerivation.deriveSymmetricKey(password: password, salt: salt)
-
+        sessionKey = key
         rateLimiter.recordSuccess()
-        isUnlocked = true
+        await MainActor.run { isUnlocked = true }
     }
 
     // MARK: — Lock
 
     func lock() {
-        // Wipe session key from memory
+        // SymmetricKey zeroes its internal buffer on dealloc (CryptoKit guarantee)
         sessionKey = nil
         isUnlocked = false
     }
 
-    // MARK: — Session Key Access
+    // MARK: — Session Key
 
-    /// Returns the active session key. Nil if locked.
-    func activeKey() -> SymmetricKey? {
-        return sessionKey
-    }
+    func activeKey() -> SymmetricKey? { sessionKey }
 
-    // MARK: — Rate Limiter Info
+    // MARK: — Rate Limiter
 
     var isRateLimited: Bool { rateLimiter.isLocked }
     var rateLimitSecondsRemaining: Int { rateLimiter.remainingLockSeconds }
@@ -110,25 +108,22 @@ final class AuthManager: ObservableObject {
     // MARK: — Private
 
     private func isCorrectPassword(_ password: String) throws -> Bool {
-        let salt = try KeychainManager.load(key: passwordSaltKey)
-        let storedHash = try KeychainManager.load(key: passwordHashKey)
-        let candidateHash = try KeyDerivation.hashForStorage(value: password, salt: salt)
-        return KeyDerivation.constantTimeEqual(storedHash, candidateHash)
+        let salt       = try KeychainManager.load(key: passwordSaltKey)
+        let stored     = try KeychainManager.load(key: passwordHashKey)
+        let candidate  = try KeyDerivation.hashForStorage(value: password, salt: salt)
+        return KeyDerivation.constantTimeEqual(stored, candidate)
     }
 
     private func isPanicPassword(_ password: String) throws -> Bool {
-        let salt = try KeychainManager.load(key: panicSaltKey)
-        let storedHash = try KeychainManager.load(key: panicHashKey)
-        let candidateHash = try KeyDerivation.hashForStorage(value: password, salt: salt)
-        return KeyDerivation.constantTimeEqual(storedHash, candidateHash)
+        let salt      = try KeychainManager.load(key: panicSaltKey)
+        let stored    = try KeychainManager.load(key: panicHashKey)
+        let candidate = try KeyDerivation.hashForStorage(value: password, salt: salt)
+        return KeyDerivation.constantTimeEqual(stored, candidate)
     }
 
     private func triggerPanicWipe() {
-        // Lock immediately
         lock()
-        // Delegate to NoteStore for secure multi-pass wipe
         NoteStore.shared.panicWipeAll()
-        // Clear keychain credentials
         try? KeychainManager.delete(key: passwordHashKey)
         try? KeychainManager.delete(key: passwordSaltKey)
         try? KeychainManager.delete(key: panicHashKey)
@@ -137,6 +132,6 @@ final class AuthManager: ObservableObject {
     }
 
     private func hasStoredCredentials() -> Bool {
-        return (try? KeychainManager.load(key: passwordHashKey)) != nil
+        (try? KeychainManager.load(key: passwordHashKey)) != nil
     }
 }

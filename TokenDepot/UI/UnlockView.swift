@@ -13,17 +13,13 @@ struct UnlockView: View {
 
     var body: some View {
         ZStack {
-            // Dark background
-            Color(red: 0.08, green: 0.08, blue: 0.10)
-                .ignoresSafeArea()
+            Color(red: 0.08, green: 0.08, blue: 0.10).ignoresSafeArea()
 
             VStack(spacing: 28) {
-                // Icon
                 Image(systemName: "lock.doc.fill")
                     .font(.system(size: 48))
                     .foregroundColor(.white.opacity(0.9))
 
-                // Title
                 VStack(spacing: 4) {
                     Text("TokenDepot")
                         .font(.system(size: 22, weight: .semibold, design: .monospaced))
@@ -33,7 +29,6 @@ struct UnlockView: View {
                         .foregroundColor(.white.opacity(0.5))
                 }
 
-                // Password field
                 VStack(spacing: 12) {
                     SecureField("Master password", text: $password)
                         .textFieldStyle(.plain)
@@ -44,9 +39,8 @@ struct UnlockView: View {
                         .background(Color.white.opacity(0.08))
                         .cornerRadius(8)
                         .onSubmit { attemptUnlock() }
-                        .disabled(isLocked)
+                        .disabled(isLocked || isUnlocking)
 
-                    // Error message
                     if let error = errorMessage {
                         Text(error)
                             .font(.system(size: 12))
@@ -54,56 +48,42 @@ struct UnlockView: View {
                             .multilineTextAlignment(.center)
                     }
 
-                    // Unlock button
                     Button(action: attemptUnlock) {
                         HStack {
                             if isUnlocking {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                                    .tint(.black)
+                                ProgressView().scaleEffect(0.7).tint(.black)
                             }
-                            Text(isLocked ? "Locked (\(lockCountdown)s)" : "Unlock")
+                            Text(isLocked ? "Locked (\(lockCountdown)s)" : isUnlocking ? "Unlocking..." : "Unlock")
                                 .font(.system(size: 15, weight: .semibold))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(isLocked ? Color.gray.opacity(0.4) : Color.white)
-                        .foregroundColor(isLocked ? .white.opacity(0.5) : .black)
+                        .background(isLocked || isUnlocking ? Color.gray.opacity(0.4) : Color.white)
+                        .foregroundColor(isLocked || isUnlocking ? .white.opacity(0.5) : .black)
                         .cornerRadius(8)
                     }
                     .disabled(isLocked || isUnlocking || password.isEmpty)
                     .buttonStyle(.plain)
                 }
 
-                // Recovery link
-                Button("Forgot password? Recover access") {
-                    showRecovery = true
-                }
-                .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.35))
-                .buttonStyle(.plain)
+                Button("Forgot password? Recover access") { showRecovery = true }
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.35))
+                    .buttonStyle(.plain)
             }
             .padding(40)
             .frame(width: 340)
         }
         .onReceive(timer) { _ in
-            if auth.isRateLimited {
-                lockCountdown = auth.rateLimitSecondsRemaining
-            } else {
-                lockCountdown = 0
-            }
+            lockCountdown = auth.isRateLimited ? auth.rateLimitSecondsRemaining : 0
         }
-        .sheet(isPresented: $showRecovery) {
-            RecoveryView()
-        }
+        .sheet(isPresented: $showRecovery) { RecoveryView() }
     }
 
-    private var isLocked: Bool {
-        auth.isRateLimited
-    }
+    private var isLocked: Bool { auth.isRateLimited }
 
     private func attemptUnlock() {
-        guard !password.isEmpty, !isLocked else { return }
+        guard !password.isEmpty, !isLocked, !isUnlocking else { return }
         isUnlocking = true
         errorMessage = nil
 
@@ -112,11 +92,9 @@ struct UnlockView: View {
 
         Task {
             do {
-                try AuthManager.shared.unlock(password: pw)
-                await MainActor.run {
-                    isUnlocking = false
-                    // AuthManager.isUnlocked triggers AppDelegate to show notes
-                }
+                // unlock() is now async — KDF runs off main thread, UI stays responsive
+                try await AuthManager.shared.unlock(password: pw)
+                await MainActor.run { isUnlocking = false }
             } catch AuthError.rateLimited(let seconds) {
                 await MainActor.run {
                     isUnlocking = false
@@ -132,11 +110,9 @@ struct UnlockView: View {
                 await MainActor.run {
                     isUnlocking = false
                     let attempts = AuthManager.shared.failedAttempts
-                    if attempts <= 2 {
-                        errorMessage = "Wrong password. \(2 - attempts + 1) free attempt(s) remaining."
-                    } else {
-                        errorMessage = "Wrong password."
-                    }
+                    errorMessage = attempts <= 2
+                        ? "Wrong password. \(max(0, 2 - attempts + 1)) free attempt(s) remaining."
+                        : "Wrong password."
                 }
             }
         }

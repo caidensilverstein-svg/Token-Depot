@@ -6,36 +6,66 @@ final class MenuBarController: NSObject {
 
     static let shared = MenuBarController()
 
-    private var statusItem: NSStatusItem?
+    private var statusItem: NSStatusItem!
     private(set) var noteWindows: [UUID: StickyNoteWindow] = [:]
 
     private override init() {
         super.init()
-        setupMenuBar()
+        // Setup must happen on main thread
+        DispatchQueue.main.async { self.setupMenuBar() }
     }
 
     // MARK: — Menubar Setup
 
     private func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.isVisible = true
 
-        if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "lock.doc", accessibilityDescription: "TokenDepot")
-            button.image?.isTemplate = true
+        if let button = statusItem.button {
+            if let img = NSImage(systemSymbolName: "lock.doc.fill", accessibilityDescription: "TokenDepot") {
+                img.isTemplate = true
+                button.image = img
+            } else {
+                // Fallback text if symbol missing
+                button.title = "TD"
+            }
         }
 
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "New Note",       action: #selector(newNote),  keyEquivalent: "n"))
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Show All Notes", action: #selector(showAll),  keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Hide All Notes", action: #selector(hideAll),  keyEquivalent: ""))
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Lock",           action: #selector(lockApp),  keyEquivalent: "l"))
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit",           action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        buildMenu()
+    }
 
-        menu.items.forEach { $0.target = self }
-        statusItem?.menu = menu
+    private func buildMenu() {
+        let menu = NSMenu()
+
+        let newItem = NSMenuItem(title: "New Note", action: #selector(newNote), keyEquivalent: "n")
+        newItem.target = self
+        menu.addItem(newItem)
+
+        menu.addItem(.separator())
+
+        let showItem = NSMenuItem(title: "Show All Notes", action: #selector(showAll), keyEquivalent: "")
+        showItem.target = self
+        menu.addItem(showItem)
+
+        let hideItem = NSMenuItem(title: "Hide All Notes", action: #selector(hideAll), keyEquivalent: "")
+        hideItem.target = self
+        menu.addItem(hideItem)
+
+        menu.addItem(.separator())
+
+        let lockItem = NSMenuItem(title: "Lock TokenDepot", action: #selector(lockApp), keyEquivalent: "l")
+        lockItem.keyEquivalentModifierMask = .command
+        lockItem.target = self
+        menu.addItem(lockItem)
+
+        menu.addItem(.separator())
+
+        let quitItem = NSMenuItem(title: "Quit TokenDepot", action: #selector(quitApp), keyEquivalent: "q")
+        quitItem.keyEquivalentModifierMask = .command
+        quitItem.target = self
+        menu.addItem(quitItem)
+
+        statusItem.menu = menu
     }
 
     // MARK: — Note Window Management
@@ -56,7 +86,6 @@ final class MenuBarController: NSObject {
     }
 
     func closeAllWindows() {
-        // Snapshot keys first to avoid mutating dict while iterating via delegate
         let ids = Array(noteWindows.keys)
         for id in ids {
             noteWindows[id]?.close()
@@ -82,13 +111,19 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func lockApp() {
-        // Close all windows first, then lock, then show unlock screen
         closeAllWindows()
         NoteStore.shared.clearMemory()
         AuthManager.shared.lock()
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .showUnlockScreen, object: nil)
         }
+    }
+
+    @objc private func quitApp() {
+        // Wipe session key from memory before quitting
+        NoteStore.shared.clearMemory()
+        AuthManager.shared.lock()
+        NSApp.terminate(nil)
     }
 }
 
