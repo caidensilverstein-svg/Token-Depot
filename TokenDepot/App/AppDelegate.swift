@@ -14,7 +14,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menuBar = MenuBarController.shared
 
-        // Listen for screen lock
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(screenDidLock),
@@ -29,16 +28,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        // Watch @Published isUnlocked directly via Combine
         authCancellable = AuthManager.shared.$isUnlocked
             .receive(on: DispatchQueue.main)
             .sink { [weak self] unlocked in
-                if unlocked {
-                    self?.onUnlocked()
-                }
+                if unlocked { self?.onUnlocked() }
             }
 
-        // Boot
         if !AuthManager.shared.isSetup {
             showSetupFlow()
         } else {
@@ -66,7 +61,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let key = AuthManager.shared.activeKey() else { return }
         try? NoteStore.shared.loadAll(key: key)
 
-        // If no notes yet, open one blank note to get started
         if NoteStore.shared.notes.isEmpty {
             let note = Note()
             try? NoteStore.shared.save(note: note, key: key)
@@ -103,7 +97,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showSetupFlow() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 580),
-            styleMask: [.titled],
+            // Add .closable so the red X works
+            styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
@@ -112,8 +107,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentView = NSHostingView(rootView: SetupView())
         window.isReleasedWhenClosed = false
         window.level = .floating
+        window.delegate = self
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         setupWindow = window
+    }
+}
+
+// MARK: — NSWindowDelegate
+
+extension AppDelegate: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        if window === setupWindow {
+            setupWindow = nil
+            // If they close setup without finishing, quit — app is unusable without credentials
+            NSApp.terminate(nil)
+        }
+        if window === unlockWindow {
+            unlockWindow = nil
+        }
     }
 }

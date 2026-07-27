@@ -25,6 +25,7 @@
 		A116 /* UnlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F116 /* UnlockView.swift */; };
 		A117 /* RecoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F117 /* RecoveryView.swift */; };
 		A118 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F118 /* SetupView.swift */; };
+		A119 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F119 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,9 +47,10 @@
 		F116 /* UnlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockView.swift; sourceTree = "<group>"; };
 		F117 /* RecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryView.swift; sourceTree = "<group>"; };
 		F118 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
+		F119 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FAPP /* TokenDepot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TokenDepot.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		FENTS /* TokenDepot.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TokenDepot.entitlements; sourceTree = "<group>"; };
 		FPLIST /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FENTS /* TokenDepot.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TokenDepot.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +64,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		GMAIN /* TokenDepot */ = {
+			isa = PBXGroup;
+			children = (
+				GAPP /* App */,
+				GCRY /* Crypto */,
+				GAUT /* Auth */,
+				GSTO /* Storage */,
+				GUI  /* UI */,
+				F119 /* Assets.xcassets */,
+				FPLIST /* Info.plist */,
+				FENTS /* TokenDepot.entitlements */,
+			);
+			path = TokenDepot;
+			sourceTree = "<group>";
+		};
 		GAPP /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -69,17 +86,6 @@
 				F102 /* AppDelegate.swift */,
 			);
 			path = App;
-			sourceTree = "<group>";
-		};
-		GAUT /* Auth */ = {
-			isa = PBXGroup;
-			children = (
-				F106 /* AuthManager.swift */,
-				F107 /* KeychainManager.swift */,
-				F108 /* RateLimiter.swift */,
-				F109 /* RecoveryManager.swift */,
-			);
-			path = Auth;
 			sourceTree = "<group>";
 		};
 		GCRY /* Crypto */ = {
@@ -92,34 +98,15 @@
 			path = Crypto;
 			sourceTree = "<group>";
 		};
-		GMAIN /* TokenDepot */ = {
+		GAUT /* Auth */ = {
 			isa = PBXGroup;
 			children = (
-				GAPP /* App */,
-				GCRY /* Crypto */,
-				GAUT /* Auth */,
-				GSTO /* Storage */,
-				GUI /* UI */,
-				FPLIST /* Info.plist */,
-				FENTS /* TokenDepot.entitlements */,
+				F106 /* AuthManager.swift */,
+				F107 /* KeychainManager.swift */,
+				F108 /* RateLimiter.swift */,
+				F109 /* RecoveryManager.swift */,
 			);
-			path = TokenDepot;
-			sourceTree = "<group>";
-		};
-		GPROD /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				FAPP /* TokenDepot.app */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		GROOT = {
-			isa = PBXGroup;
-			children = (
-				GMAIN /* TokenDepot */,
-				GPROD /* Products */,
-			);
+			path = Auth;
 			sourceTree = "<group>";
 		};
 		GSTO /* Storage */ = {
@@ -143,6 +130,22 @@
 				F118 /* SetupView.swift */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		GROOT /* root */ = {
+			isa = PBXGroup;
+			children = (
+				GMAIN /* TokenDepot */,
+				GPROD /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		GPROD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FAPP /* TokenDepot.app */,
+			);
+			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -203,6 +206,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A119 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -373,7 +377,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.silversteincapital.tokendepot;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.silversteincapital.tokendepot";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -400,7 +404,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.silversteincapital.tokendepot;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.silversteincapital.tokendepot";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -411,15 +415,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		BCLLIST /* Build configuration list for PBXNativeTarget "TokenDepot" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				BCTDEBUG /* Debug */,
-				BCTRELEASE /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		BCLPROJ /* Build configuration list for PBXProject "TokenDepot" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -429,7 +424,17 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		BCLLIST /* Build configuration list for PBXNativeTarget "TokenDepot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BCTDEBUG /* Debug */,
+				BCTRELEASE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
 	};
 	rootObject = PROJ /* Project object */;
 }
