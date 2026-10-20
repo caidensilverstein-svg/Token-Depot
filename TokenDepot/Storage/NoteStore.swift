@@ -86,7 +86,7 @@ final class NoteStore: ObservableObject {
     // MARK: — Key migration
 
     /// Re-encrypt every note payload from `oldKey` to `newKey`, preserving envelope metadata.
-    /// Idempotent: notes already readable with `newKey` are skipped, so an interrupted run can resume.
+    /// Idempotent: notes already readable with `newKey` (or unreadable with `oldKey`) are skipped, so an interrupted run can resume.
     func migrate(from oldKey: SymmetricKey, to newKey: SymmetricKey) throws {
         let files = try fm.contentsOfDirectory(
             at: notesDirectory,
@@ -102,7 +102,11 @@ final class NoteStore: ObservableObject {
                 continue
             }
 
-            let plaintext = try CryptoEngine.decrypt(combined: envelope.encryptedPayload, key: oldKey)
+            // Leave notes we can't read (e.g. orphaned by an earlier password reset) untouched
+            // rather than failing the whole migration and blocking unlock.
+            guard let plaintext = try? CryptoEngine.decrypt(combined: envelope.encryptedPayload, key: oldKey) else {
+                continue
+            }
             let migrated = EncryptedNoteEnvelope(
                 id: envelope.id,
                 encryptedPayload: try CryptoEngine.encrypt(plaintext: plaintext, key: newKey),
