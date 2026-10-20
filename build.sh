@@ -27,6 +27,7 @@ pkill -x "$APP_NAME" 2>/dev/null || true
 sleep 1
 
 echo "→ Installing to /Applications..."
+rm -rf "/Applications/$APP_NAME.app"
 cp -R "$APP_PATH" "/Applications/$APP_NAME.app"
 xattr -cr "/Applications/$APP_NAME.app"
 
