@@ -83,6 +83,43 @@ final class NoteStore: ObservableObject {
         }
     }
 
+    // MARK: — Key migration
+
+    /// Re-encrypt every note payload from `oldKey` to `newKey`, preserving envelope metadata.
+    /// Idempotent: notes already readable with `newKey` are skipped, so an interrupted run can resume.
+    func migrate(from oldKey: SymmetricKey, to newKey: SymmetricKey) throws {
+        let files = try fm.contentsOfDirectory(
+            at: notesDirectory,
+            includingPropertiesForKeys: nil,
+            options: .skipsHiddenFiles
+        ).filter { $0.pathExtension == "tdnote" }
+
+        for fileURL in files {
+            let envelope = try JSONDecoder().decode(
+                EncryptedNoteEnvelope.self, from: try Data(contentsOf: fileURL))
+
+            if (try? CryptoEngine.decrypt(combined: envelope.encryptedPayload, key: newKey)) != nil {
+                continue
+            }
+
+            let plaintext = try CryptoEngine.decrypt(combined: envelope.encryptedPayload, key: oldKey)
+            let migrated = EncryptedNoteEnvelope(
+                id: envelope.id,
+                encryptedPayload: try CryptoEngine.encrypt(plaintext: plaintext, key: newKey),
+                salt: envelope.salt,
+                createdAt: envelope.createdAt,
+                updatedAt: envelope.updatedAt,
+                positionX: envelope.positionX,
+                positionY: envelope.positionY,
+                width: envelope.width,
+                height: envelope.height,
+                colorRaw: envelope.colorRaw
+            )
+            try JSONEncoder().encode(migrated).write(to: fileURL, options: [.atomic])
+            try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
+        }
+    }
+
     // MARK: — Delete
 
     func delete(note: Note) throws {

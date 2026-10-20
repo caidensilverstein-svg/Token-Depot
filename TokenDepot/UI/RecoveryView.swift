@@ -16,6 +16,7 @@ struct RecoveryView: View {
 
     @State private var step: Step = .biometric
     @State private var token = ""
+    @State private var vaultKey: SymmetricKey?
     @State private var newPassword = ""
     @State private var confirmPassword = ""
     @State private var errorMessage: String?
@@ -186,11 +187,13 @@ struct RecoveryView: View {
     private func verifyToken() {
         isWorking = true; errorMessage = nil
         do {
-            try RecoveryManager.shared.verifyToken(token)
+            vaultKey = try RecoveryManager.shared.verifyToken(token)
             step = .newPassword
         } catch RecoveryError.tokenMismatch {
             errorMessage = "Invalid token. Re-authenticate with Touch ID."
             step = .biometric
+        } catch RecoveryError.notSetup {
+            errorMessage = "This install predates recoverable keys, so notes cannot be restored with the recovery token. Unlock with your password instead."
         } catch {
             errorMessage = "Verification failed."
         }
@@ -202,46 +205,21 @@ struct RecoveryView: View {
             errorMessage = "Passwords do not match."
             return
         }
+        guard let vaultKey = vaultKey else {
+            step = .failed("Recovery session expired. Please start again.")
+            return
+        }
         step = .reencrypting
 
         Task.detached(priority: .userInitiated) {
             do {
-                try await reencryptAllNotes(newPassword: newPassword)
+                try AuthManager.shared.resetPassword(newPassword, vaultKey: vaultKey)
                 await MainActor.run { step = .success }
             } catch {
                 await MainActor.run {
-                    step = .failed("Re-encryption failed: \(error.localizedDescription). Your old password is still active.")
+                    step = .failed("Password reset failed: \(error.localizedDescription). Your old password is still active.")
                 }
             }
-        }
-    }
-
-    /// Re-encrypt all note files with a new password.
-    /// 1. Derive old key from current stored hash — we can't since we don't have old password.
-    ///    Instead: notes are already in NoteStore.shared.notes (loaded at unlock).
-    ///    Re-save each one with a newly derived key from the new password.
-    /// 2. Update stored password hash in keychain.
-    /// 3. Wipe old keychain entries.
-    private func reencryptAllNotes(newPassword: String) async throws {
-        // Derive new key
-        let newSalt = KeyDerivation.generateSalt()
-        let newKey  = try KeyDerivation.deriveSymmetricKey(password: newPassword, salt: newSalt)
-
-        // Re-save all in-memory notes with new key
-        // NoteStore.shared.notes are already decrypted in memory from unlock
-        let notes = await MainActor.run { NoteStore.shared.notes }
-        for note in notes {
-            try NoteStore.shared.save(note: note, key: newKey)
-        }
-
-        // Update keychain: new password hash + salt
-        let newHash = try KeyDerivation.hashForStorage(value: newPassword, salt: newSalt)
-        try KeychainManager.store(key: "td.passwordSalt", data: newSalt)
-        try KeychainManager.store(key: "td.passwordHash", data: newHash)
-
-        // Lock — user must re-unlock with new password
-        await MainActor.run {
-            AuthManager.shared.lock()
         }
     }
 

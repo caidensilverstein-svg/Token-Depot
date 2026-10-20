@@ -33,6 +33,7 @@ final class RecoveryManager {
         let salt = KeyDerivation.generateSalt()
         let hash = try KeyDerivation.hashForStorage(value: token, salt: salt)
 
+        try AuthManager.shared.storeRecoveryWrap(token: token, salt: salt)
         try KeychainManager.store(key: tokenSaltKey, data: salt)
         try KeychainManager.store(key: tokenHashKey, data: hash)
 
@@ -68,7 +69,8 @@ final class RecoveryManager {
 
     /// Step 2: Verify the 32-char recovery token. Biometric must have passed first.
     /// On success, returns a new temp key so the user can set a new password.
-    func verifyToken(_ token: String) throws {
+    @discardableResult
+    func verifyToken(_ token: String) throws -> SymmetricKey {
         guard biometricPassed else {
             throw RecoveryError.biometricFailed("Complete biometric authentication first")
         }
@@ -87,6 +89,13 @@ final class RecoveryManager {
 
         // Both factors passed — recovery is authorized
         biometricPassed = false  // Consume the biometric pass
+
+        // The token also unlocks the vault key, so notes survive the password reset.
+        do {
+            return try AuthManager.shared.recoverVaultKey(token: token, salt: salt)
+        } catch AuthError.notSetup {
+            throw RecoveryError.notSetup
+        }
     }
 
     // MARK: — Private
